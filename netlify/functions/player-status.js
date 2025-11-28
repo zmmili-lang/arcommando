@@ -4,25 +4,27 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return cors({})
   const auth = requireAdmin(event)
   if (!auth.ok) return auth.res
-  const store = getStoreFromEvent(event)
   const id = (event.queryStringParameters?.id || '').trim()
   if (!id) return cors({ error: 'id required' }, 400)
+  try {
+    const store = getStoreFromEvent(event)
+    const codes = (await getJSON(store, CODES_KEY, [])) || []
 
-  const codes = (await getJSON(store, CODES_KEY, [])) || []
+    // primary: status index only
+    const idx = await getStatusIndex(store)
+    const pentry = idx.players?.[String(id)] || { redeemed: {}, blocked: {} }
+    const redeemedSet = new Set(Object.keys(pentry.redeemed || {}))
+    const blocked = pentry.blocked || {}
 
-  // primary: status index
-  const idx = await getStatusIndex(store)
-  const pentry = idx.players?.[String(id)] || { redeemed: {}, blocked: {} }
-  const redeemedSet = new Set(Object.keys(pentry.redeemed || {}))
-  const blocked = pentry.blocked || {}
-
-  // we rely on the status index only; no history scan needed
-
-  return cors({
-    codes: codes.map(c => ({ code: c.code, active: !!c.active })),
-    redeemed: Array.from(redeemedSet),
-    blocked
-  })
+    return cors({
+      codes: codes.map(c => ({ code: c.code, active: !!c.active })),
+      redeemed: Array.from(redeemedSet),
+      blocked
+    })
+  } catch (e) {
+    // Fail-open with an empty but valid payload so UI can render, and include an error string
+    return cors({ codes: [], redeemed: [], blocked: {}, error: String(e?.message || e) })
+  }
 }
   const blocked = {}
   for (const [code, v] of lastByCode.entries()) {
