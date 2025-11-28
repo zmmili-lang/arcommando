@@ -6,7 +6,7 @@ export const handler = async (event) => {
   if (!auth.ok) return auth.res
   const store = getStoreFromEvent(event)
   const body = parseBody(event)
-  const code = String(body.code || '').trim().toUpperCase()
+  const code = String(body.code || '').trim()
   if (!code) return cors({ error: 'code required' }, 400)
 
   const codes = (await getJSON(store, CODES_KEY, [])) || []
