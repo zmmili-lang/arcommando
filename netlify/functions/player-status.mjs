@@ -26,17 +26,3 @@ export const handler = async (event) => {
     return cors({ codes: [], redeemed: [], blocked: {}, error: String(e?.message || e) })
   }
 }
-  const blocked = {}
-  for (const [code, v] of lastByCode.entries()) {
-    const raw = (v.rawMsg || '').toUpperCase()
-    const msg = (v.message || '').toUpperCase()
-    if (raw === 'TIME ERROR' || msg.includes('EXPIRED')) blocked[code] = 'expired'
-    else if (raw === 'USED' || msg.includes('CLAIM LIMIT')) blocked[code] = 'limit'
-  }
-
-  return cors({
-    codes: codes.map(c => ({ code: c.code, active: !!c.active })),
-    redeemed: Array.from(redeemedSet),
-    blocked
-  })
-}
