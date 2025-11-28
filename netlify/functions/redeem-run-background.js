@@ -1,4 +1,4 @@
-import { appendHistory, cors, getJSON, getStoreFromEvent, JOBS_PREFIX, parseBody, PLAYERS_KEY, CODES_KEY, readJob, requireAdmin, setJSON, sleep, updateJob } from './_utils.js'
+import { appendHistory, cors, getJSON, getStoreFromEvent, JOBS_PREFIX, parseBody, PLAYERS_KEY, CODES_KEY, readJob, requireAdmin, setJSON, sleep, updateJob, getStatusIndex, applyStatusToIndex } from './_utils.js'
 import { redeemGiftCode } from './ks-api.js'
 
 export const handler = async (event) => {
@@ -22,7 +22,7 @@ export const handler = async (event) => {
   const expiredCodes = new Set()
   const usedCodes = new Set()
   try {
-    const idx = (await (await import('./_utils.js')).getStatusIndex(store))
+    const idx = await getStatusIndex(store)
     for (const [pid, data] of Object.entries(idx.players || {})) {
       for (const code of Object.keys(data.redeemed || {})) {
         redeemedPairs.add(`${pid}:${code}`)
@@ -59,7 +59,6 @@ export const handler = async (event) => {
         })
         // persist skip reason in status index so UI hides the Redeem button for remaining players too
         try {
-          const { applyStatusToIndex } = await import('./_utils.js')
           const entry = { ts, playerId: p.id, code: c.code }
           if (skippedReason.includes('already')) {
             entry.status = 'already_redeemed'; entry.message = 'Already redeemed'; entry.raw = { msg: 'RECEIVED' }
