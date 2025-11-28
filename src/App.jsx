@@ -59,7 +59,10 @@ export default function App() {
   if (!isAuthed) {
     return (
       <main className="container py-4">
-        <h1>ARCommando Admin</h1>
+        <div className="d-flex flex-column align-items-center">
+          <img src="/logo.png" alt="App logo" className="app-logo-xl mb-3" />
+          <h1>ARCommando Admin</h1>
+        </div>
         <section className="mt-3">
           <p>Enter admin password to continue.</p>
           <div className="d-flex gap-2">
@@ -80,7 +83,7 @@ export default function App() {
         <aside className="border-end bg-body-tertiary" style={{width: 220}}>
           <div className="p-3 d-flex flex-column h-100">
             <div className="d-flex align-items-center gap-2 mb-3">
-              <i className="bi bi-controller"></i>
+              <img src="/logo.png" alt="App logo" className="app-logo" />
               <strong>ARCommando</strong>
             </div>
             <Nav page={page} setPage={setPage} />

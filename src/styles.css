@@ -3,6 +3,8 @@
 body { margin: 0; font-family: system-ui, sans-serif; }
 header { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #ddd; }
 header h1 { font-size: 18px; margin: 0; }
+.app-logo { width: 36px; height: 36px; object-fit: contain; }
+.app-logo-xl { width: 96px; height: 96px; object-fit: contain; }
 nav { display: flex; gap: 8px; }
 nav button { padding: 6px 10px; cursor: pointer; }
 main { padding: 16px; max-width: 1000px; margin: 0 auto; }
