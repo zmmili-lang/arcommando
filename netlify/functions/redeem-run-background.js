@@ -57,6 +57,19 @@ export const handler = async (event) => {
           lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => skipped (${skippedReason})`,
           lastEventObj
         })
+        // persist skip reason in status index so UI hides the Redeem button for remaining players too
+        try {
+          const { applyStatusToIndex } = await import('./_utils.js')
+          const entry = { ts, playerId: p.id, code: c.code }
+          if (skippedReason.includes('already')) {
+            entry.status = 'already_redeemed'; entry.message = 'Already redeemed'; entry.raw = { msg: 'RECEIVED' }
+          } else if (skippedReason.includes('expired')) {
+            entry.status = 'error'; entry.message = 'Code has expired'; entry.raw = { msg: 'TIME ERROR' }
+          } else if (skippedReason.includes('claim limit')) {
+            entry.status = 'error'; entry.message = 'Claim limit reached'; entry.raw = { msg: 'USED' }
+          }
+          await applyStatusToIndex(store, entry)
+        } catch {}
         continue
       }
 
