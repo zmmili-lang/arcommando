@@ -65,8 +65,9 @@ export const handler = async (event) => {
       try {
         const res = await redeemGiftCode({ playerId: p.id, code: c.code })
         await appendHistory(store, { ts, playerId: p.id, code: c.code, status: res.status, message: res.message, raw: res.raw })
-        if (res.status === 'success') {
-          // mark player lastRedeemedAt and code lastTriedAt
+        if (res.status === 'success' || res.status === 'already_redeemed') {
+          // mark player lastRedeemedAt and code lastTriedAt, and update in-memory skip set
+          redeemedPairs.add(`${p.id}:${c.code}`)
           const playersNow = await getJSON(store, PLAYERS_KEY, [])
           const idx = playersNow.findIndex(x => String(x.id) === String(p.id))
           if (idx !== -1) { playersNow[idx].lastRedeemedAt = ts; await setJSON(store, PLAYERS_KEY, playersNow) }
@@ -85,9 +86,11 @@ export const handler = async (event) => {
           lastEventObj
         })
 
-        if (res.raw?.msg === 'TIME ERROR' || res.raw?.msg === 'USED') {
-          await updateJob(store, jobId, { status: 'complete', finishedAt: Date.now(), lastEvent: `Stopping early due to ${res.raw.msg}` })
-          return cors({ ok: true })
+        // If we learn mid-run that this code is expired or claim-limited, mark it so subsequent players are skipped
+        if (res.raw?.msg === 'TIME ERROR') {
+          expiredCodes.add(c.code)
+        } else if (res.raw?.msg === 'USED') {
+          usedCodes.add(c.code)
         }
       } catch (e) {
         await appendHistory(store, { ts, playerId: p.id, code: c.code, status: 'error', message: String(e.message || e), raw: null })
