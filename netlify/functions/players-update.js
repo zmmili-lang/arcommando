@@ -19,5 +19,5 @@ export const handler = async (event) => {
 
   players[idx] = { ...players[idx], ...patch }
   await setJSON(store, PLAYERS_KEY, players)
-  return cors({ ok: true })
+  return cors({ ok: true, players })
 }

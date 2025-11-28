@@ -42,10 +42,10 @@ export default function Codes({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      await api('codes-add', { adminPass, method: 'POST', body: { code: c, note } })
+      const data = await api('codes-add', { adminPass, method: 'POST', body: { code: c, note } })
       toast.success('Code added')
       setCode(''); setNote('')
-      await load()
+      setCodes(data.codes || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
   }
 
@@ -53,9 +53,9 @@ export default function Codes({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      await api('codes-update', { adminPass, method: 'POST', body: { code: c.code, ...patch } })
+      const data = await api('codes-update', { adminPass, method: 'POST', body: { code: c.code, ...patch } })
       toast.success('Updated')
-      await load()
+      setCodes(data.codes || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Update failed') } finally { setLoading(false) }
   }
 
@@ -64,9 +64,9 @@ export default function Codes({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      await api('codes-remove', { adminPass, method: 'POST', body: { code: c.code } })
+      const data = await api('codes-remove', { adminPass, method: 'POST', body: { code: c.code } })
       toast.success('Removed')
-      await load()
+      setCodes(data.codes || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
   }
 
@@ -79,11 +79,6 @@ export default function Codes({ adminPass }) {
         <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
         <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
       </div>
-      {loading && (
-        <div className="progress my-2" style={{height:6}}>
-          <div className="progress-bar progress-bar-striped progress-bar-animated" style={{width:'100%'}} />
-        </div>
-      )}
       {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
       <table className="table table-sm table-hover align-middle mt-2">
         <thead className="table-light">

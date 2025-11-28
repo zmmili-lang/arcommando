@@ -12,5 +12,5 @@ export const handler = async (event) => {
   const codes = (await getJSON(store, CODES_KEY, [])) || []
   const next = codes.filter(c => c.code !== code)
   await setJSON(store, CODES_KEY, next)
-  return cors({ ok: true })
+  return cors({ ok: true, codes: next })
 }

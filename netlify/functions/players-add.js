@@ -26,5 +26,5 @@ export const handler = async (event) => {
     { id: playerId, nickname: profile.nickname || '', avatar_image: profile.avatar_image || '', addedAt: Date.now(), lastRedeemedAt: null, disabled: false }
   ]
   await setJSON(store, PLAYERS_KEY, next)
-  return cors({ ok: true })
+  return cors({ ok: true, players: next })
 }

@@ -15,5 +15,5 @@ export const handler = async (event) => {
 
   const next = [...codes, { code, note, active: true, addedAt: Date.now(), lastTriedAt: null }]
   await setJSON(store, CODES_KEY, next)
-  return cors({ ok: true })
+  return cors({ ok: true, codes: next })
 }

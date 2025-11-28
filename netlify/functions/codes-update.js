@@ -18,5 +18,5 @@ export const handler = async (event) => {
   for (const k of editable) if (k in body) patch[k] = body[k]
   codes[idx] = { ...codes[idx], ...patch }
   await setJSON(store, CODES_KEY, codes)
-  return cors({ ok: true })
+  return cors({ ok: true, codes })
 }

@@ -15,24 +15,26 @@ function encodeData(data) {
   return { sign, ...data }
 }
 
-async function postJSON(url, payload) {
+async function postForm(url, payload) {
+  const params = new URLSearchParams()
+  for (const [k,v] of Object.entries(payload)) params.append(k, String(v))
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
+      'content-type': 'application/x-www-form-urlencoded',
       'accept': 'application/json, text/plain, */*',
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
       'origin': 'https://ks-giftcode.centurygame.com',
       'referer': 'https://ks-giftcode.centurygame.com/'
     },
-    body: JSON.stringify(payload)
+    body: params
   })
   return res
 }
 
 async function makeRequest(url, payload, { maxRetries = 3, retryDelayMs = 2000 } = {}) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const res = await postJSON(url, payload)
+    const res = await postForm(url, payload)
     const status = res.status
     let data
     try { data = await res.json() } catch { data = null }

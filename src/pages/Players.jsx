@@ -47,10 +47,10 @@ export default function Players({ adminPass }) {
     setAdding(true)
     setError('')
     try {
-      await api('players-add', { adminPass, method: 'POST', body: { playerId: fid.trim() } })
+      const data = await api('players-add', { adminPass, method: 'POST', body: { playerId: fid.trim() } })
       toast.success('Player added')
       setFid('')
-      await load()
+      setPlayers(data.players || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
   }
 
@@ -58,9 +58,9 @@ export default function Players({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      await api('players-update', { adminPass, method: 'POST', body: { id: p.id, ...patch } })
+      const data = await api('players-update', { adminPass, method: 'POST', body: { id: p.id, ...patch } })
       toast.success('Updated')
-      await load()
+      setPlayers(data.players || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Update failed') } finally { setLoading(false) }
   }
 
@@ -69,9 +69,9 @@ export default function Players({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      await api('players-remove', { adminPass, method: 'POST', body: { id: p.id } })
+      const data = await api('players-remove', { adminPass, method: 'POST', body: { id: p.id } })
       toast.success('Removed')
-      await load()
+      setPlayers(data.players || [])
     } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
   }
 
@@ -108,11 +108,6 @@ export default function Players({ adminPass }) {
         <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
         <span className="text-muted">Count: {players.length} / 100</span>
       </div>
-      {(adding || loading) && (
-        <div className="progress my-2" style={{height:6}}>
-          <div className="progress-bar progress-bar-striped progress-bar-animated" style={{width:'100%'}} />
-        </div>
-      )}
       {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
       <table className="table table-sm table-hover align-middle mt-2">
         <thead className="table-light">
