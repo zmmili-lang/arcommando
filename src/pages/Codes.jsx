@@ -46,6 +46,10 @@ export default function Codes({ adminPass }) {
       toast.success('Code added')
       setCode(''); setNote('')
       setCodes(data.codes || [])
+      // auto-start redeem for this code across all players
+      const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
+      await fetch(`/.netlify/functions/redeem-run-background?jobId=${encodeURIComponent(start.jobId)}`, { method: 'POST', headers: { 'x-admin-pass': adminPass } })
+      toast('Auto-redeem started')
     } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
   }
 
@@ -87,6 +91,7 @@ export default function Codes({ adminPass }) {
             <th>Active</th>
             <th>Added (UTC)</th>
             <th>Last Tried (UTC)</th>
+            <th>Redeemed</th>
             <th>Note</th>
             <th>Actions</th>
           </tr>
@@ -98,6 +103,7 @@ export default function Codes({ adminPass }) {
               <td><input type="checkbox" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} /></td>
               <td>{fmtUTC(c.addedAt)}</td>
               <td>{fmtUTC(c.lastTriedAt)}</td>
+              <td>{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
               <td><input className="form-control form-control-sm" value={c.note || ''} onChange={e => update(c, { note: e.target.value })} /></td>
               <td><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}>Remove</button></td>
             </tr>

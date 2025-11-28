@@ -13,7 +13,9 @@ export const handler = async (event) => {
   const players = (await getJSON(store, PLAYERS_KEY, [])) || []
   const codes = (await getJSON(store, CODES_KEY, [])) || []
   const enabledPlayers = players.filter(p => !p.disabled)
-  const activeCodes = codes.filter(c => !!c.active)
+
+  const jobMeta = await readJob(store, jobId)
+  const activeCodes = jobMeta?.onlyCode ? codes.filter(c => c.code === jobMeta.onlyCode) : codes.filter(c => !!c.active)
 
   await updateJob(store, jobId, { status: 'running' })
 
@@ -36,11 +38,13 @@ export const handler = async (event) => {
         if (cidx !== -1) { codesNow[cidx].lastTriedAt = ts; await setJSON(store, CODES_KEY, codesNow) }
 
         const curJob = await readJob(store, jobId) || {}
-        const job = await updateJob(store, jobId, {
+        const lastEventObj = { ts, playerId: p.id, nickname: p.nickname || '', code: c.code, status: res.status, message: res.message }
+        await updateJob(store, jobId, {
           done: (curJob.done || 0) + 1,
           successes: (res.status === 'success' || res.status === 'already_redeemed') ? (curJob.successes || 0) + 1 : (curJob.successes || 0),
           failures: res.status === 'error' ? (curJob.failures || 0) + 1 : (curJob.failures || 0),
-          lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => ${res.status} (${res.message})`
+          lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => ${res.status} (${res.message})`,
+          lastEventObj
         })
 
         if (res.raw?.msg === 'TIME ERROR' || res.raw?.msg === 'USED') {
@@ -50,10 +54,12 @@ export const handler = async (event) => {
       } catch (e) {
         await appendHistory(store, { ts, playerId: p.id, code: c.code, status: 'error', message: String(e.message || e), raw: null })
         const curJob = await readJob(store, jobId) || {}
+        const lastEventObj = { ts, playerId: p.id, nickname: p.nickname || '', code: c.code, status: 'error', message: String(e.message || e) }
         await updateJob(store, jobId, {
           done: (curJob.done || 0) + 1,
           failures: (curJob.failures || 0) + 1,
-          lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => error (${String(e.message || e)})`
+          lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => error (${String(e.message || e)})`,
+          lastEventObj
         })
       }
 

@@ -17,7 +17,17 @@ export default function Redeem({ adminPass }) {
   const [job, setJob] = useState(null)
   const [log, setLog] = useState([])
   const [loading, setLoading] = useState(false)
+  const [players, setPlayers] = useState([])
   const pollRef = useRef(null)
+
+  useEffect(() => { (async () => {
+    try { const res = await api('players-list', { adminPass }); setPlayers(res.players || []) } catch {}
+  })() }, [])
+
+  const nameOf = (id) => {
+    const p = players.find(x => String(x.id) === String(id))
+    return p?.nickname || ''
+  }
 
   const start = async () => {
     setLoading(true)
@@ -31,7 +41,10 @@ export default function Redeem({ adminPass }) {
       pollRef.current = setInterval(async () => {
         const j = await api(`redeem-status?jobId=${encodeURIComponent(jobId)}`, { adminPass })
         setJob(j)
-        if (j?.lastEvent) setLog(prev => [j.lastEvent, ...prev].slice(0, 50))
+        if (j?.lastEventObj || j?.lastEvent) {
+          const evt = j.lastEventObj || { text: j.lastEvent }
+          setLog(prev => [evt, ...prev].slice(0, 50))
+        }
         if (j?.status === 'complete' || j?.status === 'failed') clearInterval(pollRef.current)
       }, 2000)
     } finally {
@@ -59,7 +72,13 @@ export default function Redeem({ adminPass }) {
         <h4>Live log</h4>
         <ul>
           {log.map((l, idx) => (
-            <li key={idx}><code>{typeof l === 'string' ? l : JSON.stringify(l)}</code></li>
+            <li key={idx}>
+              {l.playerId ? (
+                <code>{new Date(l.ts).toISOString()} {l.playerId} ({nameOf(l.playerId)}) {l.code} => {l.status} ({l.message})</code>
+              ) : (
+                <code>{typeof l === 'string' ? l : JSON.stringify(l)}</code>
+              )}
+            </li>
           ))}
         </ul>
       </div>

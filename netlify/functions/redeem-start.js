@@ -5,11 +5,13 @@ export const handler = async (event) => {
   const auth = requireAdmin(event)
   if (!auth.ok) return auth.res
   const store = getStoreFromEvent(event)
+  const body = parseBody(event)
 
   const players = (await getJSON(store, PLAYERS_KEY, [])) || []
   const codes = (await getJSON(store, CODES_KEY, [])) || []
   const enabledPlayers = players.filter(p => !p.disabled)
-  const activeCodes = codes.filter(c => !!c.active)
+  const onlyCode = body?.onlyCode ? String(body.onlyCode).trim() : null
+  const activeCodes = onlyCode ? codes.filter(c => c.code === onlyCode) : codes.filter(c => !!c.active)
 
   const jobId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`
   const job = {
@@ -21,7 +23,8 @@ export const handler = async (event) => {
     done: 0,
     successes: 0,
     failures: 0,
-    lastEvent: null
+    lastEvent: null,
+    onlyCode: onlyCode || undefined
   }
   await setJSON(store, `${JOBS_PREFIX}${jobId}.json`, job)
   return cors({ jobId })
