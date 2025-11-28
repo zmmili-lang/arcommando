@@ -23,25 +23,34 @@ export default function Debug({ adminPass }) {
       language: navigator.language,
       time: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locationHref: location.href,
     }
-    console.groupCollapsed('ARCommando Debug Dump')
-    console.log('Client', client)
-    console.log('Meta', debug.meta)
-    console.log('Players (first 10)', debug.players.slice(0,10))
-    console.log('Codes (first 20)', debug.codes.slice(0,20))
-    console.log('Jobs', debug.jobs)
-    console.log('History sample (first 50)', debug.history.slice(0,50))
+    const full = { client, ...debug }
+    const json = JSON.stringify(full, null, 2)
+    console.group('ARCommando Debug Dump (full)')
+    console.log('FULL JSON (copy from next line if needed):')
+    console.log(json)
+    console.log('OBJECT:', full)
     console.groupEnd()
     setPrinted(true)
+    return { full, json }
   }
 
   useEffect(() => { dump() }, [])
 
+  const copyAll = async () => {
+    const { json } = await dump()
+    try { await navigator.clipboard.writeText(json) } catch {}
+  }
+
   return (
     <section>
       <h2>Debug</h2>
-      <p>Debug dump printed to browser console (press F12 → Console). This page is hidden from the menu. You can revisit by using #debug in the URL.</p>
-      <button className="btn btn-outline-secondary" onClick={dump}>Print again</button>
+      <p>Full debug JSON printed to console (F12 → Console). Also use Copy to clipboard if preferred.</p>
+      <div className="d-flex gap-2">
+        <button className="btn btn-outline-secondary" onClick={dump}>Print again</button>
+        <button className="btn btn-outline-primary" onClick={copyAll}>Copy JSON to clipboard</button>
+      </div>
       {printed && <span className="ms-2 text-success">Printed</span>}
     </section>
   )
