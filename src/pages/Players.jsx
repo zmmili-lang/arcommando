@@ -91,7 +91,16 @@ export default function Players({ adminPass }) {
     try {
       const res = await api('redeem-single', { adminPass, method: 'POST', body: { id: playerId, code } })
       toast[res.status === 'success' || res.status === 'already_redeemed' ? 'success' : 'error'](`${code}: ${res.message}`)
-      // refresh status panel
+      // optimistic update: mark redeemed/blocked locally immediately
+      setCodeStatus(prev => {
+        const cur = prev?.data || { codes: [], redeemed: [], blocked: {} }
+        const next = { ...cur, redeemed: [...new Set([...(cur.redeemed||[]), ...(res.status==='success'||res.status==='already_redeemed'?[code]:[])])], blocked: { ...(cur.blocked||{}) } }
+        const msg = (res.message || '').toUpperCase()
+        if (msg.includes('EXPIRED')) next.blocked[code] = 'expired'
+        if (msg.includes('CLAIM LIMIT')) next.blocked[code] = 'limit'
+        return { loading: false, data: next }
+      })
+      // then refresh from server history to be consistent
       const data = await api(`player-status?id=${encodeURIComponent(playerId)}`, { adminPass })
       setCodeStatus({ loading: false, data })
     } catch (e) {
@@ -152,11 +161,11 @@ export default function Players({ adminPass }) {
                         const blockedReason = codeStatus.data.blocked?.[c.code]
                         return (
                           <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1">
-                            <span className={`badge ${redeemed? 'bg-success': blockedReason? 'bg-secondary':'bg-info'}`}>{c.code}</span>
+                            <span className={`badge ${redeemed? 'bg-success': blockedReason? 'bg-secondary':'bg-secondary'}`}>{c.code}</span>
                             {redeemed && <span className="text-success small">Redeemed</span>}
                             {!redeemed && blockedReason === 'expired' && <span className="text-muted small">Expired</span>}
                             {!redeemed && blockedReason === 'limit' && <span className="text-muted small">Claim limit</span>}
-                            {!redeemed && !blockedReason && <button className="btn btn-sm btn-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                            {!redeemed && !blockedReason && <button className="btn btn-sm btn-outline-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
                           </div>
                         )
                       })}
