@@ -149,10 +149,14 @@ export default function Players({ adminPass }) {
                     <div className="d-flex gap-2 flex-wrap">
                       {codeStatus.data.codes.map(c => {
                         const redeemed = codeStatus.data.redeemed.includes(c.code)
+                        const blockedReason = codeStatus.data.blocked?.[c.code]
                         return (
                           <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1">
-                            <span className={`badge ${redeemed? 'bg-success':'bg-secondary'}`}>{c.code}</span>
-                            {!redeemed && <button className="btn btn-sm btn-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                            <span className={`badge ${redeemed? 'bg-success': blockedReason? 'bg-secondary':'bg-info'}`}>{c.code}</span>
+                            {redeemed && <span className="text-success small">Redeemed</span>}
+                            {!redeemed && blockedReason === 'expired' && <span className="text-muted small">Expired</span>}
+                            {!redeemed && blockedReason === 'limit' && <span className="text-muted small">Claim limit</span>}
+                            {!redeemed && !blockedReason && <button className="btn btn-sm btn-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
                           </div>
                         )
                       })}

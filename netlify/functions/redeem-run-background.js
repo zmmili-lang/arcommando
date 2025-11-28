@@ -17,6 +17,25 @@ export const handler = async (event) => {
   const jobMeta = await readJob(store, jobId)
   const activeCodes = jobMeta?.onlyCode ? codes.filter(c => c.code === jobMeta.onlyCode) : codes.filter(c => !!c.active)
 
+  // Build skip maps from history (avoid duplicate attempts and known expired/limit codes)
+  const redeemedPairs = new Set() // `${playerId}:${code}`
+  const expiredCodes = new Set()
+  const usedCodes = new Set()
+  for await (const page of store.list({ prefix: 'history/', paginate: true })) {
+    for (const item of page.blobs) {
+      const entries = await store.get(item.key, { type: 'json' })
+      if (!Array.isArray(entries)) continue
+      for (const e of entries) {
+        const pair = `${e.playerId}:${e.code}`
+        if (e.status === 'success' || e.status === 'already_redeemed') redeemedPairs.add(pair)
+        const rawMsg = (e.raw && e.raw.msg) || ''
+        const msg = (e.message || '').toUpperCase()
+        if (rawMsg === 'TIME ERROR' || msg.includes('EXPIRED')) expiredCodes.add(e.code)
+        if (rawMsg === 'USED' || msg.includes('CLAIM LIMIT')) usedCodes.add(e.code)
+      }
+    }
+  }
+
   await updateJob(store, jobId, { status: 'running' })
 
   const minDelayMs = 1000, maxDelayMs = 1000 // mirror python (1s)
@@ -24,6 +43,25 @@ export const handler = async (event) => {
   for (const c of activeCodes) {
     for (const p of enabledPlayers) {
       const ts = Date.now()
+
+      // Skip rules
+      const pair = `${p.id}:${c.code}`
+      let skippedReason = null
+      if (redeemedPairs.has(pair)) skippedReason = 'already redeemed (skip)'
+      else if (expiredCodes.has(c.code)) skippedReason = 'expired (skip)'
+      else if (usedCodes.has(c.code)) skippedReason = 'claim limit reached (skip)'
+
+      if (skippedReason) {
+        const curJob = await readJob(store, jobId) || {}
+        const lastEventObj = { ts, playerId: p.id, nickname: p.nickname || '', code: c.code, status: 'skipped', message: skippedReason }
+        await updateJob(store, jobId, {
+          done: (curJob.done || 0) + 1,
+          lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => skipped (${skippedReason})`,
+          lastEventObj
+        })
+        continue
+      }
+
       try {
         const res = await redeemGiftCode({ playerId: p.id, code: c.code })
         await appendHistory(store, { ts, playerId: p.id, code: c.code, status: res.status, message: res.message, raw: res.raw })
