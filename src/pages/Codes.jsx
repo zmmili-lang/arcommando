@@ -19,7 +19,6 @@ function fmtUTC(ts) { return ts ? new Date(ts).toLocaleString('en-GB', { timeZon
 export default function Codes({ adminPass }) {
   const [codes, setCodes] = useState([])
   const [code, setCode] = useState('')
-  const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,9 +41,9 @@ export default function Codes({ adminPass }) {
     setLoading(true)
     setError('')
     try {
-      const data = await api('codes-add', { adminPass, method: 'POST', body: { code: c, note } })
+      const data = await api('codes-add', { adminPass, method: 'POST', body: { code: c } })
       toast.success('Code added')
-      setCode(''); setNote('')
+      setCode('')
       setCodes(data.codes || [])
       // auto-start redeem for this code across all players
       const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
@@ -79,7 +78,6 @@ export default function Codes({ adminPass }) {
       <h2>Codes</h2>
       <div className="d-flex gap-2 align-items-center">
         <input className="form-control" style={{maxWidth:260}} placeholder="Gift code" value={code} onChange={e => setCode(e.target.value)} />
-        <input className="form-control" style={{maxWidth:300}} placeholder="Note (optional)" value={note} onChange={e => setNote(e.target.value)} />
         <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
         <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
       </div>
@@ -92,7 +90,6 @@ export default function Codes({ adminPass }) {
             <th>Added (UTC)</th>
             <th>Last Tried (UTC)</th>
             <th>Redeemed</th>
-            <th>Note</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -104,7 +101,6 @@ export default function Codes({ adminPass }) {
               <td>{fmtUTC(c.addedAt)}</td>
               <td>{fmtUTC(c.lastTriedAt)}</td>
               <td>{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
-              <td><input className="form-control form-control-sm" value={c.note || ''} onChange={e => update(c, { note: e.target.value })} /></td>
               <td><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}>Remove</button></td>
             </tr>
           ))}
