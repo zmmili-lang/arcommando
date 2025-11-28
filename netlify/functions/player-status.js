@@ -1,4 +1,4 @@
-import { cors, getJSON, getStoreFromEvent, CODES_KEY, HISTORY_PREFIX, requireAdmin } from './_utils.js'
+import { cors, getJSON, getStoreFromEvent, CODES_KEY, HISTORY_PREFIX, requireAdmin, getStatusIndex } from './_utils.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return cors({})
@@ -10,25 +10,33 @@ export const handler = async (event) => {
 
   const codes = (await getJSON(store, CODES_KEY, [])) || []
 
-  // aggregate redeemed and blocked codes across all history files for this player
-  const redeemedSet = new Set()
-  const lastByCode = new Map() // code -> { ts, status, message, rawMsg }
-  for await (const page of store.list({ prefix: HISTORY_PREFIX, paginate: true })) {
-    for (const item of page.blobs) {
-      const entries = await store.get(item.key, { type: 'json' })
-      if (!Array.isArray(entries)) continue
-      for (const e of entries) {
-        if (String(e.playerId) !== String(id)) continue
-        if (e.status === 'success' || e.status === 'already_redeemed') redeemedSet.add(e.code)
-        const cur = lastByCode.get(e.code)
-        if (!cur || (e.ts && e.ts > cur.ts)) {
-          lastByCode.set(e.code, { ts: e.ts || 0, status: e.status, message: e.message, rawMsg: e?.raw?.msg || '' })
+  // primary: status index
+  const idx = await getStatusIndex(store)
+  const pentry = idx.players?.[String(id)] || { redeemed: {}, blocked: {} }
+  const redeemedSet = new Set(Object.keys(pentry.redeemed || {}))
+  const blocked = pentry.blocked || {}
+
+  // fallback: scan history if index is empty
+  if (redeemedSet.size === 0) {
+    for await (const page of store.list({ prefix: HISTORY_PREFIX, paginate: true })) {
+      for (const item of page.blobs) {
+        const entries = await store.get(item.key, { type: 'json' })
+        if (!Array.isArray(entries)) continue
+        for (const e of entries) {
+          if (String(e.playerId) === String(id)) {
+            if (e.status === 'success' || e.status === 'already_redeemed') redeemedSet.add(e.code)
+          }
         }
       }
     }
   }
 
-  // determine blocked reasons based on last status
+  return cors({
+    codes: codes.map(c => ({ code: c.code, active: !!c.active })),
+    redeemed: Array.from(redeemedSet),
+    blocked
+  })
+}
   const blocked = {}
   for (const [code, v] of lastByCode.entries()) {
     const raw = (v.rawMsg || '').toUpperCase()

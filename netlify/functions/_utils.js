@@ -6,6 +6,7 @@ export const PLAYERS_KEY = 'players.json'
 export const CODES_KEY = 'codes.json'
 export const JOBS_PREFIX = 'jobs/'
 export const HISTORY_PREFIX = 'history/'
+export const STATUS_INDEX_KEY = 'status/index.json'
 
 export function cors(body, statusCode = 200) {
   return {
@@ -64,11 +65,43 @@ export function todayYMD(ts = Date.now()) {
   return new Date(ts).toISOString().slice(0, 10)
 }
 
+export async function getStatusIndex(store) {
+  const idx = await getJSON(store, STATUS_INDEX_KEY, null)
+  return idx || { players: {} }
+}
+
+export async function setStatusIndex(store, idx) {
+  await setJSON(store, STATUS_INDEX_KEY, idx)
+}
+
+export function deriveBlockedReason(entry) {
+  const raw = (entry?.raw?.msg || '').toUpperCase()
+  const msg = (entry?.message || '').toUpperCase()
+  if (raw === 'TIME ERROR' || msg.includes('EXPIRED')) return 'expired'
+  if (raw === 'USED' || msg.includes('CLAIM LIMIT')) return 'limit'
+  return null
+}
+
+export async function applyStatusToIndex(store, entry) {
+  try {
+    const idx = await getStatusIndex(store)
+    const pid = String(entry.playerId)
+    if (!idx.players[pid]) idx.players[pid] = { redeemed: {}, blocked: {} }
+    if (entry.status === 'success' || entry.status === 'already_redeemed') {
+      idx.players[pid].redeemed[entry.code] = entry.ts || Date.now()
+    }
+    const blocked = deriveBlockedReason(entry)
+    if (blocked) idx.players[pid].blocked[entry.code] = blocked
+    await setStatusIndex(store, idx)
+  } catch {}
+}
+
 export async function appendHistory(store, entry) {
   const key = `${HISTORY_PREFIX}${todayYMD(entry.ts || Date.now())}.json`
   const list = (await getJSON(store, key, [])) || []
   list.push(entry)
   await setJSON(store, key, list)
+  await applyStatusToIndex(store, entry)
 }
 
 export async function updateJob(store, jobId, patch) {
