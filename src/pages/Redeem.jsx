@@ -41,14 +41,21 @@ export default function Redeem({ adminPass }) {
 
   useEffect(() => () => clearInterval(pollRef.current), [])
 
+  const progressPct = job?.totalTasks ? Math.round(((job.done||0) / job.totalTasks) * 100) : 0
+
   return (
     <section>
       <h2>Redeem</h2>
-      <div className="row">
-        <button onClick={start} disabled={loading || job?.status === 'running'}>Redeem All Active Codes for All Players</button>
+      <div className="d-flex gap-2 align-items-center">
+        <button className="btn btn-primary" onClick={start} disabled={loading || job?.status === 'running'}>Redeem All Active Codes for All Players</button>
         {job && <span>Job: {job.id} — Status: {job.status} — {job.done || 0}/{job.totalTasks || 0} — OK: {job.successes || 0} — Fail: {job.failures || 0}</span>}
       </div>
-      <div style={{marginTop:12}}>
+      {job && (
+        <div className="progress my-2" style={{height:10}}>
+          <div className="progress-bar" role="progressbar" style={{width: `${progressPct}%`}} aria-valuenow={progressPct} aria-valuemin="0" aria-valuemax="100">{progressPct}%</div>
+        </div>
+      )}
+      <div className="mt-3">
         <h4>Live log</h4>
         <ul>
           {log.map((l, idx) => (
@@ -57,5 +64,4 @@ export default function Redeem({ adminPass }) {
         </ul>
       </div>
     </section>
-  )
-}
+  )}

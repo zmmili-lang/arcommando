@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 async function api(path, { adminPass, method = 'GET', body } = {}) {
   const res = await fetch(`/.netlify/functions/${path}`, {
@@ -13,11 +14,18 @@ async function api(path, { adminPass, method = 'GET', body } = {}) {
   return res.json()
 }
 
+function fmtUTC(ts) {
+  return ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-'
+}
+
 export default function Players({ adminPass }) {
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [fid, setFid] = useState('')
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(null)
+  const [codeStatus, setCodeStatus] = useState({ loading: false, data: null })
 
   const load = async () => {
     setLoading(true)
@@ -36,13 +44,14 @@ export default function Players({ adminPass }) {
 
   const add = async () => {
     if (!fid.trim()) return
-    setLoading(true)
+    setAdding(true)
     setError('')
     try {
       await api('players-add', { adminPass, method: 'POST', body: { playerId: fid.trim() } })
+      toast.success('Player added')
       setFid('')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
   }
 
   const update = async (p, patch) => {
@@ -50,8 +59,9 @@ export default function Players({ adminPass }) {
     setError('')
     try {
       await api('players-update', { adminPass, method: 'POST', body: { id: p.id, ...patch } })
+      toast.success('Updated')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Update failed') } finally { setLoading(false) }
   }
 
   const remove = async (p) => {
@@ -60,49 +70,103 @@ export default function Players({ adminPass }) {
     setError('')
     try {
       await api('players-remove', { adminPass, method: 'POST', body: { id: p.id } })
+      toast.success('Removed')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
+  }
+
+  const toggleCodes = async (p) => {
+    if (expanded === p.id) { setExpanded(null); setCodeStatus({ loading: false, data: null }); return }
+    setExpanded(p.id)
+    setCodeStatus({ loading: true, data: null })
+    try {
+      const data = await api(`player-status?id=${encodeURIComponent(p.id)}`, { adminPass })
+      setCodeStatus({ loading: false, data })
+    } catch (e) {
+      setCodeStatus({ loading: false, data: null }); toast.error('Failed to load code status')
+    }
+  }
+
+  const redeemOne = async (playerId, code) => {
+    try {
+      const res = await api('redeem-single', { adminPass, method: 'POST', body: { id: playerId, code } })
+      toast[res.status === 'success' || res.status === 'already_redeemed' ? 'success' : 'error'](`${code}: ${res.message}`)
+      // refresh status panel
+      const data = await api(`player-status?id=${encodeURIComponent(playerId)}`, { adminPass })
+      setCodeStatus({ loading: false, data })
+    } catch (e) {
+      toast.error(String(e.message || e))
+    }
   }
 
   return (
     <section>
       <h2>Players</h2>
-      <div className="row">
-        <input placeholder="Player ID (fid)" value={fid} onChange={e => setFid(e.target.value)} />
-        <button onClick={add} disabled={loading}>Add</button>
-        <button onClick={load} disabled={loading}>Refresh</button>
-        <span style={{opacity:0.7}}>Count: {players.length} / 100</span>
+      <div className="d-flex gap-2 align-items-center">
+        <input className="form-control" style={{maxWidth:300}} placeholder="Player ID (fid)" value={fid} onChange={e => setFid(e.target.value)} />
+        <button className="btn btn-success" onClick={add} disabled={adding}>Add</button>
+        <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
+        <span className="text-muted">Count: {players.length} / 100</span>
       </div>
-      {error && <p className="badge err">{error}</p>}
-      <table className="table" style={{marginTop: 12}}>
-        <thead>
+      {(adding || loading) && (
+        <div className="progress my-2" style={{height:6}}>
+          <div className="progress-bar progress-bar-striped progress-bar-animated" style={{width:'100%'}} />
+        </div>
+      )}
+      {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
+      <table className="table table-sm table-hover align-middle mt-2">
+        <thead className="table-light">
           <tr>
             <th>Avatar</th>
             <th>Nickname</th>
             <th>FID</th>
-            <th>Added</th>
+            <th>Added (UTC)</th>
             <th>Disabled</th>
-            <th>Last Redeemed</th>
+            <th>Last Redeemed (UTC)</th>
+            <th>Codes</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {players.map(p => (
+            <>
             <tr key={p.id}>
               <td>{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{width:32,height:32,borderRadius:16}}/> : '-'}</td>
               <td>
-                <input value={p.nickname || ''} onChange={e => update(p, { nickname: e.target.value })} />
+                <input className="form-control form-control-sm" value={p.nickname || ''} onChange={e => update(p, { nickname: e.target.value })} />
               </td>
               <td>{p.id}</td>
-              <td>{p.addedAt ? new Date(p.addedAt).toLocaleString() : '-'}</td>
+              <td>{fmtUTC(p.addedAt)}</td>
               <td>
                 <input type="checkbox" checked={!!p.disabled} onChange={e => update(p, { disabled: e.target.checked })} />
               </td>
-              <td>{p.lastRedeemedAt ? new Date(p.lastRedeemedAt).toLocaleString() : '-'}</td>
+              <td>{fmtUTC(p.lastRedeemedAt)}</td>
+              <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded === p.id ? 'Hide' : 'View'}</button></td>
               <td>
-                <button onClick={() => remove(p)} disabled={loading}>Remove</button>
+                <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}>Remove</button>
               </td>
             </tr>
+            {expanded === p.id && (
+              <tr>
+                <td colSpan="8">
+                  {codeStatus.loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
+                  {codeStatus.data && (
+                    <div className="d-flex gap-2 flex-wrap">
+                      {codeStatus.data.codes.map(c => {
+                        const redeemed = codeStatus.data.redeemed.includes(c.code)
+                        return (
+                          <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1">
+                            <span className={`badge ${redeemed? 'bg-success':'bg-secondary'}`}>{c.code}</span>
+                            {!redeemed && <button className="btn btn-sm btn-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )}
+            </>
           ))}
         </tbody>
       </table>

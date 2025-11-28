@@ -18,6 +18,8 @@ function today() {
   return d.toISOString().slice(0,10)
 }
 
+function fmtUTC(ts) { return ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-' }
+
 export default function History({ adminPass }) {
   const [date, setDate] = useState(today())
   const [entries, setEntries] = useState([])
@@ -36,16 +38,17 @@ export default function History({ adminPass }) {
   return (
     <section>
       <h2>History</h2>
-      <div className="row">
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+      <div className="d-flex gap-2 align-items-center">
+        <input className="form-control" style={{maxWidth:220}} type="date" value={date} onChange={e => setDate(e.target.value)} />
       </div>
       {summary && (
-        <p>Totals — success: {summary.success} | already: {summary.already_redeemed} | errors: {summary.errors}</p>
+        <p className="mt-2">Totals — success: {summary.success} | already: {summary.already_redeemed} | errors: {summary.errors}</p>
       )}
-      <table className="table" style={{marginTop: 12}}>
-        <thead>
+      {loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
+      <table className="table table-sm table-hover align-middle mt-2">
+        <thead className="table-light">
           <tr>
-            <th>Time</th>
+            <th>Time (UTC)</th>
             <th>Player ID</th>
             <th>Code</th>
             <th>Status</th>
@@ -55,7 +58,7 @@ export default function History({ adminPass }) {
         <tbody>
           {entries.map((e, i) => (
             <tr key={i}>
-              <td>{new Date(e.ts).toLocaleString()}</td>
+              <td>{fmtUTC(e.ts)}</td>
               <td>{e.playerId}</td>
               <td>{e.code}</td>
               <td>{e.status}</td>

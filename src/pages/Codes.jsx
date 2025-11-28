@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 async function api(path, { adminPass, method = 'GET', body } = {}) {
   const res = await fetch(`/.netlify/functions/${path}`, {
@@ -12,6 +13,8 @@ async function api(path, { adminPass, method = 'GET', body } = {}) {
   if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`)
   return res.json()
 }
+
+function fmtUTC(ts) { return ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-' }
 
 export default function Codes({ adminPass }) {
   const [codes, setCodes] = useState([])
@@ -40,9 +43,10 @@ export default function Codes({ adminPass }) {
     setError('')
     try {
       await api('codes-add', { adminPass, method: 'POST', body: { code: c, note } })
+      toast.success('Code added')
       setCode(''); setNote('')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
   }
 
   const update = async (c, patch) => {
@@ -50,8 +54,9 @@ export default function Codes({ adminPass }) {
     setError('')
     try {
       await api('codes-update', { adminPass, method: 'POST', body: { code: c.code, ...patch } })
+      toast.success('Updated')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Update failed') } finally { setLoading(false) }
   }
 
   const remove = async (c) => {
@@ -60,27 +65,33 @@ export default function Codes({ adminPass }) {
     setError('')
     try {
       await api('codes-remove', { adminPass, method: 'POST', body: { code: c.code } })
+      toast.success('Removed')
       await load()
-    } catch (e) { setError(String(e.message || e)) } finally { setLoading(false) }
+    } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
   }
 
   return (
     <section>
       <h2>Codes</h2>
-      <div className="row">
-        <input placeholder="Gift code" value={code} onChange={e => setCode(e.target.value)} />
-        <input placeholder="Note (optional)" value={note} onChange={e => setNote(e.target.value)} />
-        <button onClick={add} disabled={loading}>Add</button>
-        <button onClick={load} disabled={loading}>Refresh</button>
+      <div className="d-flex gap-2 align-items-center">
+        <input className="form-control" style={{maxWidth:260}} placeholder="Gift code" value={code} onChange={e => setCode(e.target.value)} />
+        <input className="form-control" style={{maxWidth:300}} placeholder="Note (optional)" value={note} onChange={e => setNote(e.target.value)} />
+        <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
+        <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
       </div>
-      {error && <p className="badge err">{error}</p>}
-      <table className="table" style={{marginTop: 12}}>
-        <thead>
+      {loading && (
+        <div className="progress my-2" style={{height:6}}>
+          <div className="progress-bar progress-bar-striped progress-bar-animated" style={{width:'100%'}} />
+        </div>
+      )}
+      {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
+      <table className="table table-sm table-hover align-middle mt-2">
+        <thead className="table-light">
           <tr>
             <th>Code</th>
             <th>Active</th>
-            <th>Added</th>
-            <th>Last Tried</th>
+            <th>Added (UTC)</th>
+            <th>Last Tried (UTC)</th>
             <th>Note</th>
             <th>Actions</th>
           </tr>
@@ -90,10 +101,10 @@ export default function Codes({ adminPass }) {
             <tr key={c.code}>
               <td>{c.code}</td>
               <td><input type="checkbox" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} /></td>
-              <td>{c.addedAt ? new Date(c.addedAt).toLocaleString() : '-'}</td>
-              <td>{c.lastTriedAt ? new Date(c.lastTriedAt).toLocaleString() : '-'}</td>
-              <td><input value={c.note || ''} onChange={e => update(c, { note: e.target.value })} /></td>
-              <td><button onClick={() => remove(c)} disabled={loading}>Remove</button></td>
+              <td>{fmtUTC(c.addedAt)}</td>
+              <td>{fmtUTC(c.lastTriedAt)}</td>
+              <td><input className="form-control form-control-sm" value={c.note || ''} onChange={e => update(c, { note: e.target.value })} /></td>
+              <td><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}>Remove</button></td>
             </tr>
           ))}
         </tbody>

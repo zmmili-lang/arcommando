@@ -71,6 +71,8 @@ const RESULT_MESSAGES = {
 }
 
 export async function redeemGiftCode({ playerId, code }) {
+  // Ensure login first (mirrors Python flow) to avoid NOT LOGIN
+  try { await fetchPlayerProfile(playerId) } catch (e) { /* proceed to redeem to capture server message */ }
   const payload = encodeData({ fid: String(playerId).trim(), cdk: code, time: Date.now() })
   const { status, data } = await makeRequest(REDEEM_URL, payload)
   if (!data) return { ok: false, status: 'error', message: 'No response', httpStatus: status, raw: null }
