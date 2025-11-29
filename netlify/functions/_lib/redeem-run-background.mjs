@@ -11,10 +11,11 @@ export const handler = async (event) => {
   const jobId = (event.queryStringParameters?.jobId || '').trim()
   if (!jobId) return cors({ error: 'jobId required' }, 400)
 
-  const players = await sql`SELECT id, nickname FROM players`
+  const allPlayers = await sql`SELECT id, nickname FROM players`
   const codes = await sql`SELECT code, active FROM codes`
 
   const jobMeta = await readJob(sql, jobId)
+  const players = jobMeta?.onlyPlayer ? allPlayers.filter(p => String(p.id) === jobMeta.onlyPlayer) : allPlayers
   const activeCodes = jobMeta?.onlyCode ? codes.filter(c => c.code === jobMeta.onlyCode) : codes.filter(c => !!c.active)
 
   const redeemedPairsRows = await sql`SELECT player_id, code FROM player_codes WHERE redeemed_at IS NOT NULL`

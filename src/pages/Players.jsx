@@ -24,8 +24,8 @@ export default function Players({ adminPass }) {
   const [adding, setAdding] = useState(false)
   const [fid, setFid] = useState('')
   const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState(null)
-  const [codeStatus, setCodeStatus] = useState({ loading: false, data: null })
+  const [expanded, setExpanded] = useState(new Set())
+  const [codeStatus, setCodeStatus] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -44,13 +44,22 @@ export default function Players({ adminPass }) {
 
   const add = async () => {
     if (!fid.trim()) return
+    const playerIdToAdd = fid.trim()
     setAdding(true)
     setError('')
     try {
-      const data = await api('players-add', { adminPass, method: 'POST', body: { playerId: fid.trim() } })
+      const data = await api('players-add', { adminPass, method: 'POST', body: { playerId: playerIdToAdd } })
       toast.success('Player added')
       setFid('')
       setPlayers(data.players || [])
+      // auto-start redeem for all active codes for this new player
+      try {
+        const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyPlayer: playerIdToAdd } })
+        await fetch(`/.netlify/functions/redeem-run-background?jobId=${encodeURIComponent(start.jobId)}`, { method: 'POST', headers: { 'x-admin-pass': adminPass } })
+        toast('Auto-redeem started for active codes')
+      } catch (redeemErr) {
+        console.error('Auto-redeem failed:', redeemErr)
+      }
     } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
   }
 
@@ -67,14 +76,24 @@ export default function Players({ adminPass }) {
   }
 
   const toggleCodes = async (p) => {
-    if (expanded === p.id) { setExpanded(null); setCodeStatus({ loading: false, data: null }); return }
-    setExpanded(p.id)
-    setCodeStatus({ loading: true, data: null })
+    const newExpanded = new Set(expanded)
+    if (newExpanded.has(p.id)) {
+      newExpanded.delete(p.id)
+      setExpanded(newExpanded)
+      const newCodeStatus = { ...codeStatus }
+      delete newCodeStatus[p.id]
+      setCodeStatus(newCodeStatus)
+      return
+    }
+    newExpanded.add(p.id)
+    setExpanded(newExpanded)
+    setCodeStatus({ ...codeStatus, [p.id]: { loading: true, data: null } })
     try {
       const data = await api(`player-status?id=${encodeURIComponent(p.id)}`, { adminPass })
-      setCodeStatus({ loading: false, data })
+      setCodeStatus(prev => ({ ...prev, [p.id]: { loading: false, data } }))
     } catch (e) {
-      setCodeStatus({ loading: false, data: null }); toast.error('Failed to load code status')
+      setCodeStatus(prev => ({ ...prev, [p.id]: { loading: false, data: null } }))
+      toast.error('Failed to load code status')
     }
   }
 
@@ -84,16 +103,16 @@ export default function Players({ adminPass }) {
       toast[res.status === 'success' || res.status === 'already_redeemed' ? 'success' : 'error'](`${code}: ${res.message}`)
       // optimistic update: mark redeemed/blocked locally immediately
       setCodeStatus(prev => {
-        const cur = prev?.data || { codes: [], redeemed: [], blocked: {} }
+        const cur = prev[playerId]?.data || { codes: [], redeemed: [], blocked: {} }
         const next = { ...cur, redeemed: [...new Set([...(cur.redeemed||[]), ...(res.status==='success'||res.status==='already_redeemed'?[code]:[])])], blocked: { ...(cur.blocked||{}) } }
         const msg = (res.message || '').toUpperCase()
         if (msg.includes('EXPIRED')) next.blocked[code] = 'expired'
         if (msg.includes('CLAIM LIMIT')) next.blocked[code] = 'limit'
-        return { loading: false, data: next }
+        return { ...prev, [playerId]: { loading: false, data: next } }
       })
       // then refresh from server history to be consistent
       const data = await api(`player-status?id=${encodeURIComponent(playerId)}`, { adminPass })
-      setCodeStatus({ loading: false, data })
+      setCodeStatus(prev => ({ ...prev, [playerId]: { loading: false, data } }))
     } catch (e) {
       toast.error(String(e.message || e))
     }
@@ -130,20 +149,20 @@ export default function Players({ adminPass }) {
               <td>{p.id}</td>
               <td>{fmtUTC(p.addedAt)}</td>
               <td>{fmtUTC(p.lastRedeemedAt)}</td>
-              <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded === p.id ? 'Hide' : 'View'}</button></td>
+              <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
               <td>
                 <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}>Remove</button>
               </td>
             </tr>
-            {expanded === p.id && (
+            {expanded.has(p.id) && (
               <tr>
                 <td colSpan="7">
-                  {codeStatus.loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
-                  {codeStatus.data && (
+                  {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
+                  {codeStatus[p.id]?.data && (
                     <div className="d-flex gap-2 flex-wrap">
-                      {codeStatus.data.codes.map(c => {
-                        const redeemed = codeStatus.data.redeemed.includes(c.code)
-                        const blockedReason = codeStatus.data.blocked?.[c.code]
+                      {codeStatus[p.id].data.codes.map(c => {
+                        const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
+                        const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
                         return (
                           <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1">
                             <span className={`badge ${redeemed? 'bg-success': blockedReason? 'bg-secondary':'bg-secondary'}`}>{c.code}</span>

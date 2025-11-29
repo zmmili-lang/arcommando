@@ -69,7 +69,8 @@ export default function Codes({ adminPass }) {
     try {
       const data = await api('codes-remove', { adminPass, method: 'POST', body: { code: c.code } })
       toast.success('Removed')
-      setCodes(data.codes || [])
+      // Force table refresh by loading fresh data
+      await load()
     } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
   }
 
@@ -97,7 +98,11 @@ export default function Codes({ adminPass }) {
           {codes.map(c => (
             <tr key={c.code}>
               <td>{c.code}</td>
-              <td><input type="checkbox" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} /></td>
+              <td>
+                <div className="form-check form-switch">
+                  <input className="form-check-input" type="checkbox" role="switch" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} />
+                </div>
+              </td>
               <td>{fmtUTC(c.addedAt)}</td>
               <td>{fmtUTC(c.lastTriedAt)}</td>
               <td>{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>

@@ -60,7 +60,8 @@ export async function ensureSchema() {
       failures INTEGER,
       last_event TEXT,
       last_event_obj JSONB,
-      only_code TEXT
+      only_code TEXT,
+      only_player TEXT
     );
   `
   await sql`
@@ -178,6 +179,7 @@ export async function readJob(sql, jobId) {
     failures: r.failures,
     lastEvent: r.last_event,
     lastEventObj: r.last_event_obj,
-    onlyCode: r.only_code || undefined
+    onlyCode: r.only_code || undefined,
+    onlyPlayer: r.only_player || undefined
   }
 }
