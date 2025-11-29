@@ -1,4 +1,4 @@
 module.exports.handler = async (...args) => {
-  const mod = await import('./redeem-single.esm.mjs')
+  const mod = await import('./players-remove.mjs')
   return mod.handler(...args)
 }
