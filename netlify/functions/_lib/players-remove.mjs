@@ -12,6 +12,6 @@ export const handler = async (event) => {
 
   await sql`DELETE FROM players WHERE id = ${id}`
   const rows = await sql`SELECT id, nickname, avatar_image, added_at, last_redeemed_at FROM players ORDER BY added_at NULLS LAST, id`
-  const players = rows.map(r => ({ id: r.id, nickname: r.nickname || '', avatar_image: r.avatar_image || '', addedAt: r.added_at || null, lastRedeemedAt: r.last_redeemed_at || null }))
+  const players = rows.map(r => ({ id: r.id, nickname: r.nickname || '', avatar_image: r.avatar_image || '', addedAt: r.added_at ? Number(r.added_at) : null, lastRedeemedAt: r.last_redeemed_at ? Number(r.last_redeemed_at) : null }))
   return cors({ ok: true, players })
 }

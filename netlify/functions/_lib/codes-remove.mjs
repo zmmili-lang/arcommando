@@ -11,6 +11,6 @@ export const handler = async (event) => {
   if (!code) return cors({ error: 'code required' }, 400)
   await sql`DELETE FROM codes WHERE code = ${code}`
   const codes = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
-  const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at || null, lastTriedAt: c.last_tried_at || null }))
+  const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at ? Number(c.added_at) : null, lastTriedAt: c.last_tried_at ? Number(c.last_tried_at) : null }))
   return cors({ ok: true, codes: out })
 }

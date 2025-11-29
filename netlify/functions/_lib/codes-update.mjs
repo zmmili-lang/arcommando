@@ -7,7 +7,7 @@ export const handler = async (event) => {
   const sql = getSql()
   await ensureSchema()
   const body = parseBody(event)
-  const code = String(body.code || '').trim().toUpperCase()
+  const code = String(body.code || '').trim()
   if (!code) return cors({ error: 'code required' }, 400)
 
   const exists = await sql`SELECT 1 FROM codes WHERE code = ${code}`
@@ -23,6 +23,6 @@ export const handler = async (event) => {
     await sql(q, [...vals, code])
   }
   const codes = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
-  const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at || null, lastTriedAt: c.last_tried_at || null }))
+  const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at ? Number(c.added_at) : null, lastTriedAt: c.last_tried_at ? Number(c.last_tried_at) : null }))
   return cors({ ok: true, codes: out })
 }

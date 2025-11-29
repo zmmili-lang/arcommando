@@ -9,7 +9,7 @@ export const handler = async (event) => {
   const sql = getSql()
   const body = parseBody(event)
   const id = String(body.id || '').trim()
-  const code = String(body.code || '').trim().toUpperCase()
+  const code = String(body.code || '').trim()
   if (!id || !code) return cors({ error: 'id and code required' }, 400)
 
   const ts = Date.now()
