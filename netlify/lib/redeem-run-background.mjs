@@ -17,7 +17,6 @@ export const handler = async (event) => {
   const jobMeta = await readJob(sql, jobId)
   const activeCodes = jobMeta?.onlyCode ? codes.filter(c => c.code === jobMeta.onlyCode) : codes.filter(c => !!c.active)
 
-  // Build skip maps from DB
   const redeemedPairsRows = await sql`SELECT player_id, code FROM player_codes WHERE redeemed_at IS NOT NULL`
   const redeemedPairs = new Set(redeemedPairsRows.map(r => `${r.player_id}:${r.code}`))
   const blockedRows = await sql`SELECT code, blocked_reason FROM player_codes WHERE blocked_reason IS NOT NULL`
@@ -26,13 +25,12 @@ export const handler = async (event) => {
 
   await updateJob(sql, jobId, { status: 'running' })
 
-  const minDelayMs = 1000, maxDelayMs = 1000 // mirror python (1s)
+  const minDelayMs = 1000, maxDelayMs = 1000
 
   for (const c of activeCodes) {
     for (const p of players) {
       const ts = Date.now()
 
-      // Skip rules
       const pair = `${p.id}:${c.code}`
       let skippedReason = null
       if (redeemedPairs.has(pair)) skippedReason = 'already redeemed (skip)'

@@ -13,7 +13,6 @@ export const handler = async (event) => {
   const onlyCode = body?.onlyCode ? String(body.onlyCode).trim().toUpperCase() : null
   const activeCodes = onlyCode ? codesRows.filter(c => c.code === onlyCode) : codesRows.filter(c => !!c.active)
 
-  // Build skip sets from player_codes (redeemed pairs) and known blocked codes (expired/limit)
   const redeemedPairsRows = await sql`SELECT player_id, code FROM player_codes WHERE redeemed_at IS NOT NULL`
   const redeemedPairs = new Set(redeemedPairsRows.map(r => `${r.player_id}:${r.code}`))
   const blockedCodesRows = await sql`SELECT code, blocked_reason FROM player_codes WHERE blocked_reason IS NOT NULL`

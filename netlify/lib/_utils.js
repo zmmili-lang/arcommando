@@ -5,7 +5,6 @@ export const ADMIN_PASS = 'LFGARC'
 // cache HTTP connections across invocations
 neonConfig.fetchConnectionCache = true
 
-// Expose a singleton sql tagged template per function instance
 let _sql = null
 export function getSql() {
   if (!_sql) {
@@ -22,7 +21,6 @@ export function getSql() {
 
 export async function ensureSchema() {
   const sql = getSql()
-  // Create tables if they don't exist (idempotent)
   await sql`
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
@@ -102,11 +100,7 @@ export function noContent(statusCode = 204) {
 
 export function parseBody(event) {
   if (!event?.body) return {}
-  try {
-    return JSON.parse(event.body)
-  } catch {
-    return {}
-  }
+  try { return JSON.parse(event.body) } catch { return {} }
 }
 
 export function requireAdmin(event) {
@@ -116,10 +110,7 @@ export function requireAdmin(event) {
 }
 
 export function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
-
-export function todayYMD(ts = Date.now()) {
-  return new Date(ts).toISOString().slice(0, 10)
-}
+export function todayYMD(ts = Date.now()) { return new Date(ts).toISOString().slice(0, 10) }
 
 export function deriveBlockedReason(entry) {
   const raw = (entry?.raw?.msg || '').toUpperCase()
