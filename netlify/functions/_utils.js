@@ -1,13 +1,20 @@
-import { neon } from '@neondatabase/serverless'
+import { neon, neonConfig } from '@neondatabase/serverless'
 
 export const ADMIN_PASS = 'LFGARC'
+
+// cache HTTP connections across invocations
+neonConfig.fetchConnectionCache = true
 
 // Expose a singleton sql tagged template per function instance
 let _sql = null
 export function getSql() {
   if (!_sql) {
-    const url = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL
-    if (!url) throw new Error('DATABASE_URL/NEON_DATABASE_URL is not set')
+    const url =
+      process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
+      process.env.NETLIFY_DATABASE_URL ||
+      process.env.DATABASE_URL ||
+      process.env.NEON_DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL/NEON_DATABASE_URL/NETLIFY_DATABASE_URL[_UNPOOLED] is not set')
     _sql = neon(url)
   }
   return _sql
