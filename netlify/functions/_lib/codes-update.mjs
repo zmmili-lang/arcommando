@@ -7,7 +7,7 @@ export const handler = async (event) => {
   const sql = getSql()
   await ensureSchema()
   const body = parseBody(event)
-  const code = String(body.code || '').trim()
+  const code = String(body.code || '').trim().toUpperCase()
   if (!code) return cors({ error: 'code required' }, 400)
 
   const exists = await sql`SELECT 1 FROM codes WHERE code = ${code}`
@@ -22,7 +22,11 @@ export const handler = async (event) => {
     const q = `UPDATE codes SET ${sets.join(', ')} WHERE code = $${vals.length+1}`
     await sql(q, [...vals, code])
   }
-  const codes = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
-  const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at ? Number(c.added_at) : null, lastTriedAt: c.last_tried_at ? Number(c.last_tried_at) : null }))
-  return cors({ ok: true, codes: out })
+  const codesRows = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
+  const totalPlayersRes = await sql`SELECT COUNT(*) AS c FROM players`
+  const redeemedCounts = await sql`SELECT code, COUNT(*)::int AS cnt FROM player_codes WHERE redeemed_at IS NOT NULL GROUP BY code`
+  const rmap = new Map(redeemedCounts.map(r => [r.code, Number(r.cnt)]))
+  const totalPlayers = Number(totalPlayersRes[0].c)
+  const codes = codesRows.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at ? Number(c.added_at) : null, lastTriedAt: c.last_tried_at ? Number(c.last_tried_at) : null, stats: { redeemedCount: rmap.get(c.code) || 0, totalPlayers } }))
+  return cors({ ok: true, codes })
 }

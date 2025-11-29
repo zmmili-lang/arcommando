@@ -55,10 +55,13 @@ export default function Players({ adminPass }) {
       // auto-start redeem for all active codes for this new player
       try {
         const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyPlayer: playerIdToAdd } })
-        await fetch(`/.netlify/functions/redeem-run-background?jobId=${encodeURIComponent(start.jobId)}`, { method: 'POST', headers: { 'x-admin-pass': adminPass } })
+        console.log('Redeem job started:', start.jobId)
+        const bgRes = await fetch(`/.netlify/functions/redeem-run-background?jobId=${encodeURIComponent(start.jobId)}`, { method: 'POST', headers: { 'x-admin-pass': adminPass } })
+        console.log('Background redeem triggered:', bgRes.status)
         toast('Auto-redeem started for active codes')
       } catch (redeemErr) {
         console.error('Auto-redeem failed:', redeemErr)
+        toast.error('Auto-redeem failed - check console')
       }
     } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
   }
