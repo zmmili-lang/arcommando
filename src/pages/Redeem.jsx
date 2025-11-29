@@ -61,7 +61,7 @@ export default function Redeem({ adminPass }) {
       <h2>Redeem</h2>
       <div className="d-flex gap-2 align-items-center">
         <button className="btn btn-primary" onClick={start} disabled={loading || job?.status === 'running'}>Redeem All Active Codes for All Players</button>
-        {job && <span>Job: {job.id} — Status: {job.status} — {job.done || 0}/{job.totalTasks || 0} — OK: {job.successes || 0} — Fail: {job.failures || 0}</span>}
+        {job && <span>Job: {job.id} — Status: {job.status} — {job.done || 0}/{job.totalTasks || 0} attempted — OK: {job.successes || 0} — Fail: {job.failures || 0}</span>}
       </div>
       {job && (
         <div className="progress my-2" style={{height:10}}>
@@ -74,7 +74,7 @@ export default function Redeem({ adminPass }) {
           {log.map((l, idx) => (
             <li key={idx}>
               {l.playerId ? (
-                <code>{new Date(l.ts).toISOString()} {l.playerId} ({nameOf(l.playerId)}) {l.code} => {l.status} ({l.message})</code>
+                <code>{new Date(l.ts).toISOString()} {l.playerId} ({nameOf(l.playerId)}) {l.code}{' => '}{l.status} ({l.message})</code>
               ) : (
                 <code>{typeof l === 'string' ? l : JSON.stringify(l)}</code>
               )}

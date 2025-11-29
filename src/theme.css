@@ -1,0 +1,66 @@
+:root[data-bs-theme="dark"] {
+  /* Discord-like palette */
+  --bg: #1e1f22;
+  --panel: #2b2d31;
+  --panel-2: #313338;
+  --text: #dbdee1;
+  --muted: #a3a6aa;
+  --border: #202225;
+  --accent: #5865f2;
+  --success: #3ba55d;
+  --danger: #ed4245;
+  --radius: 8px;
+
+  color-scheme: dark;
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-border-color: var(--border);
+  --bs-primary: var(--accent);
+  --bs-success: var(--success);
+  --bs-danger: var(--danger);
+  --bs-secondary: #4f545c;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* Panels */
+aside { background: var(--panel); border-right: 1px solid var(--border); }
+main { background: var(--panel-2); }
+
+/* Buttons */
+.btn-primary { background-color: var(--accent); border-color: var(--accent); }
+.btn-outline-primary { color: var(--accent); border-color: var(--accent); }
+.btn-outline-primary:hover { background-color: color-mix(in oklab, var(--accent) 15%, transparent); }
+.btn-outline-danger { color: var(--danger); border-color: var(--danger); }
+
+/* Tables */
+.table { --bs-table-bg: transparent; --bs-table-color: var(--text); }
+.table th { background: #1f2124; color: var(--muted); }
+.table td, .table th { border-color: var(--border); }
+
+/* Badges for codes */
+.badge { border-radius: 6px; }
+.bg-success { background-color: var(--success) !important; }
+.bg-secondary { background-color: #4f545c !important; }
+
+/* Inputs */
+.form-control, .form-select { background: #1f2124; color: var(--text); border-color: var(--border); }
+.form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 0.15rem color-mix(in oklab, var(--accent) 35%, transparent); }
+
+/* Sidebar buttons */
+aside .btn { border-radius: var(--radius); }
+
+/* Cards/panels */
+.border, .rounded { border-color: var(--border) !important; }
+
+/* Code blocks */
+code { background: #222327; color: #c4c8cc; padding: 2px 6px; border-radius: 6px; }
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #2a2c31; border-radius: 10px; border: 2px solid #1e1f22; }
+*::-webkit-scrollbar-track { background: #1e1f22; }

@@ -7,7 +7,6 @@ export const handler = async (event) => {
   const store = getStoreFromEvent(event)
   const codes = (await getJSON(store, CODES_KEY, [])) || []
   const players = (await getJSON(store, PLAYERS_KEY, [])) || []
-  const enabledPlayers = players.filter(p => !p.disabled)
 
   const idx = await getStatusIndex(store)
   const withStats = codes.map(c => {
@@ -16,7 +15,7 @@ export const handler = async (event) => {
       const red = idx.players[pid]?.redeemed || {}
       if (red[c.code]) redeemedCount++
     }
-    return { ...c, stats: { redeemedCount, totalPlayers: enabledPlayers.length } }
+    return { ...c, stats: { redeemedCount, totalPlayers: players.length } }
   })
 
   return cors({ codes: withStats })

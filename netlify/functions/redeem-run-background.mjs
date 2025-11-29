@@ -12,7 +12,6 @@ export const handler = async (event) => {
 
   const players = (await getJSON(store, PLAYERS_KEY, [])) || []
   const codes = (await getJSON(store, CODES_KEY, [])) || []
-  const enabledPlayers = players.filter(p => !p.disabled)
 
   const jobMeta = await readJob(store, jobId)
   const activeCodes = jobMeta?.onlyCode ? codes.filter(c => c.code === jobMeta.onlyCode) : codes.filter(c => !!c.active)
@@ -39,7 +38,7 @@ export const handler = async (event) => {
   const minDelayMs = 1000, maxDelayMs = 1000 // mirror python (1s)
 
   for (const c of activeCodes) {
-    for (const p of enabledPlayers) {
+    for (const p of players) {
       const ts = Date.now()
 
       // Skip rules
@@ -53,7 +52,6 @@ export const handler = async (event) => {
         const curJob = await readJob(store, jobId) || {}
         const lastEventObj = { ts, playerId: p.id, nickname: p.nickname || '', code: c.code, status: 'skipped', message: skippedReason }
         await updateJob(store, jobId, {
-          done: (curJob.done || 0) + 1,
           lastEvent: `${new Date(ts).toISOString()} ${p.id} ${c.code} => skipped (${skippedReason})`,
           lastEventObj
         })

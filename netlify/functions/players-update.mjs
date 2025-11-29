@@ -13,7 +13,7 @@ export const handler = async (event) => {
   const idx = players.findIndex(p => String(p.id) === id)
   if (idx === -1) return cors({ error: 'not found' }, 404)
 
-  const editable = ['nickname', 'avatar_image', 'disabled', 'lastRedeemedAt']
+  const editable = ['avatar_image', 'lastRedeemedAt']
   const patch = {}
   for (const k of editable) if (k in body) patch[k] = body[k]
 

@@ -54,15 +54,6 @@ export default function Players({ adminPass }) {
     } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
   }
 
-  const update = async (p, patch) => {
-    setLoading(true)
-    setError('')
-    try {
-      const data = await api('players-update', { adminPass, method: 'POST', body: { id: p.id, ...patch } })
-      toast.success('Updated')
-      setPlayers(data.players || [])
-    } catch (e) { setError(String(e.message || e)); toast.error('Update failed') } finally { setLoading(false) }
-  }
 
   const remove = async (p) => {
     if (!confirm(`Remove ${p.nickname || p.id}?`)) return
@@ -125,7 +116,6 @@ export default function Players({ adminPass }) {
             <th>Nickname</th>
             <th>FID</th>
             <th>Added (UTC)</th>
-            <th>Disabled</th>
             <th>Last Redeemed (UTC)</th>
             <th>Codes</th>
             <th>Actions</th>
@@ -136,14 +126,9 @@ export default function Players({ adminPass }) {
             <>
             <tr key={p.id}>
               <td>{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{width:32,height:32,borderRadius:16}}/> : '-'}</td>
-              <td>
-                <input className="form-control form-control-sm" value={p.nickname || ''} onChange={e => update(p, { nickname: e.target.value })} />
-              </td>
+              <td>{p.nickname || ''}</td>
               <td>{p.id}</td>
               <td>{fmtUTC(p.addedAt)}</td>
-              <td>
-                <input type="checkbox" checked={!!p.disabled} onChange={e => update(p, { disabled: e.target.checked })} />
-              </td>
               <td>{fmtUTC(p.lastRedeemedAt)}</td>
               <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded === p.id ? 'Hide' : 'View'}</button></td>
               <td>
@@ -152,7 +137,7 @@ export default function Players({ adminPass }) {
             </tr>
             {expanded === p.id && (
               <tr>
-                <td colSpan="8">
+                <td colSpan="7">
                   {codeStatus.loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
                   {codeStatus.data && (
                     <div className="d-flex gap-2 flex-wrap">
