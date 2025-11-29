@@ -1,22 +1,16 @@
-import { cors, getJSON, getStoreFromEvent, CODES_KEY, PLAYERS_KEY, requireAdmin, getStatusIndex } from './_utils.js'
+import { cors, ensureSchema, getSql, requireAdmin } from './_utils.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return cors({})
   const auth = requireAdmin(event)
   if (!auth.ok) return auth.res
-  const store = getStoreFromEvent(event)
-  const codes = (await getJSON(store, CODES_KEY, [])) || []
-  const players = (await getJSON(store, PLAYERS_KEY, [])) || []
-
-  const idx = await getStatusIndex(store)
-  const withStats = codes.map(c => {
-    let redeemedCount = 0
-    for (const pid of Object.keys(idx.players || {})) {
-      const red = idx.players[pid]?.redeemed || {}
-      if (red[c.code]) redeemedCount++
-    }
-    return { ...c, stats: { redeemedCount, totalPlayers: players.length } }
-  })
-
-  return cors({ codes: withStats })
+  const sql = getSql()
+  await ensureSchema()
+  const codesRows = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
+  const totalPlayersRes = await sql`SELECT COUNT(*) AS c FROM players`
+  const redeemedCounts = await sql`SELECT code, COUNT(*)::int AS cnt FROM player_codes WHERE redeemed_at IS NOT NULL GROUP BY code`
+  const rmap = new Map(redeemedCounts.map(r => [r.code, Number(r.cnt)]))
+  const totalPlayers = Number(totalPlayersRes[0].c)
+  const codes = codesRows.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at || null, lastTriedAt: c.last_tried_at || null, stats: { redeemedCount: rmap.get(c.code) || 0, totalPlayers } }))
+  return cors({ codes })
 }

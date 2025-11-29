@@ -1,55 +1,35 @@
-import { cors, getJSON, getStoreFromEvent, JOBS_PREFIX, parseBody, PLAYERS_KEY, CODES_KEY, requireAdmin, setJSON, getStatusIndex } from './_utils.js'
+import { cors, ensureSchema, getSql, parseBody, requireAdmin } from './_utils.js'
 
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return cors({})
   const auth = requireAdmin(event)
   if (!auth.ok) return auth.res
-  const store = getStoreFromEvent(event)
+  await ensureSchema()
+  const sql = getSql()
   const body = parseBody(event)
 
-  const players = (await getJSON(store, PLAYERS_KEY, [])) || []
-  const codes = (await getJSON(store, CODES_KEY, [])) || []
-  const onlyCode = body?.onlyCode ? String(body.onlyCode).trim() : null
-  const activeCodes = onlyCode ? codes.filter(c => c.code === onlyCode) : codes.filter(c => !!c.active)
+  const players = await sql`SELECT id FROM players`
+  const codesRows = await sql`SELECT code, active FROM codes`
+  const onlyCode = body?.onlyCode ? String(body.onlyCode).trim().toUpperCase() : null
+  const activeCodes = onlyCode ? codesRows.filter(c => c.code === onlyCode) : codesRows.filter(c => !!c.active)
 
-  // Precompute skip sets from status index so totalTasks counts only actual attempts
+  // Build skip sets from player_codes (redeemed pairs) and known blocked codes (expired/limit)
+  const redeemedPairsRows = await sql`SELECT player_id, code FROM player_codes WHERE redeemed_at IS NOT NULL`
+  const redeemedPairs = new Set(redeemedPairsRows.map(r => `${r.player_id}:${r.code}`))
+  const blockedCodesRows = await sql`SELECT code, blocked_reason FROM player_codes WHERE blocked_reason IS NOT NULL`
+  const expiredCodes = new Set(blockedCodesRows.filter(r => r.blocked_reason === 'expired').map(r => r.code))
+  const usedCodes = new Set(blockedCodesRows.filter(r => r.blocked_reason === 'limit').map(r => r.code))
+
   let attempts = 0
-  try {
-    const idx = await getStatusIndex(store)
-    const redeemedPairs = new Set()
-    const expiredCodes = new Set()
-    const usedCodes = new Set()
-    for (const [pid, data] of Object.entries(idx.players || {})) {
-      for (const code of Object.keys(data.redeemed || {})) redeemedPairs.add(`${pid}:${code}`)
-      for (const [code, reason] of Object.entries(data.blocked || {})) {
-        if (reason === 'expired') expiredCodes.add(code)
-        if (reason === 'limit') usedCodes.add(code)
-      }
+  for (const c of activeCodes) {
+    if (expiredCodes.has(c.code) || usedCodes.has(c.code)) continue
+    for (const p of players) {
+      if (!redeemedPairs.has(`${p.id}:${c.code}`)) attempts++
     }
-    for (const c of activeCodes) {
-      if (expiredCodes.has(c.code) || usedCodes.has(c.code)) continue
-      for (const p of players) {
-        if (!redeemedPairs.has(`${p.id}:${c.code}`)) attempts++
-      }
-    }
-  } catch {
-    // fall back to naive count if index missing
-    attempts = players.length * activeCodes.length
   }
 
   const jobId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`
-  const job = {
-    id: jobId,
-    status: 'queued',
-    startedAt: Date.now(),
-    finishedAt: null,
-    totalTasks: attempts,
-    done: 0,
-    successes: 0,
-    failures: 0,
-    lastEvent: null,
-    onlyCode: onlyCode || undefined
-  }
-  await setJSON(store, `${JOBS_PREFIX}${jobId}.json`, job)
+  await sql`INSERT INTO jobs (id, status, started_at, finished_at, total_tasks, done, successes, failures, last_event, last_event_obj, only_code)
+            VALUES (${jobId}, ${'queued'}, ${Date.now()}, ${null}, ${attempts}, ${0}, ${0}, ${0}, ${null}, ${null}, ${onlyCode || null})`
   return cors({ jobId })
 }

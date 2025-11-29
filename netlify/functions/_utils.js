@@ -1,12 +1,75 @@
-import { connectLambda, getStore } from '@netlify/blobs'
+import { neon } from '@neondatabase/serverless'
 
 export const ADMIN_PASS = 'LFGARC'
-export const STORE_NAME = 'arcommando'
-export const PLAYERS_KEY = 'players.json'
-export const CODES_KEY = 'codes.json'
-export const JOBS_PREFIX = 'jobs/'
-export const HISTORY_PREFIX = 'history/'
-export const STATUS_INDEX_KEY = 'status/index.json'
+
+// Expose a singleton sql tagged template per function instance
+let _sql = null
+export function getSql() {
+  if (!_sql) {
+    const url = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL/NEON_DATABASE_URL is not set')
+    _sql = neon(url)
+  }
+  return _sql
+}
+
+export async function ensureSchema() {
+  const sql = getSql()
+  // Create tables if they don't exist (idempotent)
+  await sql`
+    CREATE TABLE IF NOT EXISTS players (
+      id TEXT PRIMARY KEY,
+      nickname TEXT DEFAULT '',
+      avatar_image TEXT DEFAULT '',
+      added_at BIGINT,
+      last_redeemed_at BIGINT
+    );
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS codes (
+      code TEXT PRIMARY KEY,
+      note TEXT DEFAULT '',
+      active BOOLEAN DEFAULT TRUE,
+      added_at BIGINT,
+      last_tried_at BIGINT
+    );
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS player_codes (
+      player_id TEXT REFERENCES players(id) ON DELETE CASCADE,
+      code TEXT REFERENCES codes(code) ON DELETE CASCADE,
+      redeemed_at BIGINT,
+      blocked_reason TEXT,
+      PRIMARY KEY (player_id, code)
+    );
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      status TEXT,
+      started_at BIGINT,
+      finished_at BIGINT,
+      total_tasks INTEGER,
+      done INTEGER,
+      successes INTEGER,
+      failures INTEGER,
+      last_event TEXT,
+      last_event_obj JSONB,
+      only_code TEXT
+    );
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS history (
+      id BIGSERIAL PRIMARY KEY,
+      ts BIGINT,
+      player_id TEXT,
+      code TEXT,
+      status TEXT,
+      message TEXT,
+      raw JSONB
+    );
+  `
+}
 
 export function cors(body, statusCode = 200) {
   return {
@@ -45,33 +108,10 @@ export function requireAdmin(event) {
   return { ok: true }
 }
 
-export function getStoreFromEvent(event) {
-  connectLambda(event)
-  return getStore({ name: STORE_NAME })
-}
-
-export async function getJSON(store, key, fallback) {
-  const data = await store.get(key, { type: 'json' })
-  return data ?? fallback
-}
-
-export async function setJSON(store, key, value) {
-  await store.setJSON(key, value)
-}
-
 export function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
 export function todayYMD(ts = Date.now()) {
   return new Date(ts).toISOString().slice(0, 10)
-}
-
-export async function getStatusIndex(store) {
-  const idx = await getJSON(store, STATUS_INDEX_KEY, null)
-  return idx || { players: {} }
-}
-
-export async function setStatusIndex(store, idx) {
-  await setJSON(store, STATUS_INDEX_KEY, idx)
 }
 
 export function deriveBlockedReason(entry) {
@@ -82,37 +122,64 @@ export function deriveBlockedReason(entry) {
   return null
 }
 
-export async function applyStatusToIndex(store, entry) {
+export async function applyStatusToIndex(sql, entry) {
   try {
-    const idx = await getStatusIndex(store)
     const pid = String(entry.playerId)
-    if (!idx.players[pid]) idx.players[pid] = { redeemed: {}, blocked: {} }
     if (entry.status === 'success' || entry.status === 'already_redeemed') {
-      idx.players[pid].redeemed[entry.code] = entry.ts || Date.now()
+      await sql`INSERT INTO player_codes (player_id, code, redeemed_at)
+                VALUES (${pid}, ${entry.code}, ${entry.ts || Date.now()})
+                ON CONFLICT (player_id, code)
+                DO UPDATE SET redeemed_at = EXCLUDED.redeemed_at;`
     }
     const blocked = deriveBlockedReason(entry)
-    if (blocked) idx.players[pid].blocked[entry.code] = blocked
-    await setStatusIndex(store, idx)
+    if (blocked) {
+      await sql`INSERT INTO player_codes (player_id, code, blocked_reason)
+                VALUES (${pid}, ${entry.code}, ${blocked})
+                ON CONFLICT (player_id, code)
+                DO UPDATE SET blocked_reason = EXCLUDED.blocked_reason;`
+    }
   } catch {}
 }
 
-export async function appendHistory(store, entry) {
-  const key = `${HISTORY_PREFIX}${todayYMD(entry.ts || Date.now())}.json`
-  const list = (await getJSON(store, key, [])) || []
-  list.push(entry)
-  await setJSON(store, key, list)
-  await applyStatusToIndex(store, entry)
+export async function appendHistory(sql, entry) {
+  await sql`INSERT INTO history (ts, player_id, code, status, message, raw)
+            VALUES (${entry.ts || Date.now()}, ${String(entry.playerId)}, ${entry.code}, ${entry.status}, ${entry.message}, ${entry.raw || null});`
+  await applyStatusToIndex(sql, entry)
 }
 
-export async function updateJob(store, jobId, patch) {
-  const key = `${JOBS_PREFIX}${jobId}.json`
-  const cur = (await getJSON(store, key, {})) || {}
-  const next = { ...cur, ...patch }
-  await setJSON(store, key, next)
-  return next
+export async function updateJob(sql, jobId, patch) {
+  const fields = []
+  const values = []
+  let i = 1
+  for (const [k, v] of Object.entries(patch || {})) {
+    const col = k === 'lastEvent' ? 'last_event' : k === 'lastEventObj' ? 'last_event_obj' : k
+    fields.push(`${col} = $${i++}`)
+    values.push(v)
+  }
+  if (!fields.length) {
+    const rows = await sql`SELECT * FROM jobs WHERE id = ${jobId}`
+    return rows[0] || null
+  }
+  const query = `UPDATE jobs SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`
+  const rows = await sql(query, [...values, jobId])
+  return rows[0] || null
 }
 
-export async function readJob(store, jobId) {
-  const key = `${JOBS_PREFIX}${jobId}.json`
-  return (await getJSON(store, key, null))
+export async function readJob(sql, jobId) {
+  const rows = await sql`SELECT * FROM jobs WHERE id = ${jobId}`
+  const r = rows[0]
+  if (!r) return null
+  return {
+    id: r.id,
+    status: r.status,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    totalTasks: r.total_tasks,
+    done: r.done,
+    successes: r.successes,
+    failures: r.failures,
+    lastEvent: r.last_event,
+    lastEventObj: r.last_event_obj,
+    onlyCode: r.only_code || undefined
+  }
 }
