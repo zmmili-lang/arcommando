@@ -58,7 +58,7 @@ export default function History({ adminPass }) {
             </div>
 
             <div className="row g-2 mb-3">
-                <div className="col-12 col-md-8">
+                <div className="col-12 col-md-6">
                     <input
                         className="form-control"
                         type="date"
@@ -66,7 +66,7 @@ export default function History({ adminPass }) {
                         onChange={e => setDate(e.target.value)}
                     />
                 </div>
-                <div className="col-12 col-md-4">
+                <div className="col-12 col-md-6">
                     <button className="btn btn-outline-danger w-100" onClick={clearLogs}>Clear logs (day)</button>
                 </div>
             </div>
