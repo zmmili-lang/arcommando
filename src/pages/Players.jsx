@@ -118,57 +118,73 @@ export default function Players({ adminPass }) {
 
     return (
         <section>
-            <h2>Players</h2>
-            <div className="d-flex gap-2 align-items-center">
-                <input className="form-control" style={{ maxWidth: 300 }} placeholder="Player ID (fid)" value={fid} onChange={e => setFid(e.target.value)} />
-                <button className="btn btn-success" onClick={add} disabled={adding}>Add</button>
-                <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
-                <span className="text-muted">Count: {players.length} / 100</span>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <h2 className="m-0">Players</h2>
+                <span className="text-muted small">Count: {players.length} / 100</span>
             </div>
-            {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
-            <div className="table-responsive">
-                <table className="table table-sm table-hover align-middle mt-2">
-                    <thead className="table-light">
+
+            <div className="row g-2 mb-3">
+                <div className="col-12 col-md-8">
+                    <div className="input-group">
+                        <input
+                            className="form-control"
+                            placeholder="Player ID (fid)"
+                            value={fid}
+                            onChange={e => setFid(e.target.value)}
+                        />
+                        <button className="btn btn-success" onClick={add} disabled={adding}>Add</button>
+                    </div>
+                </div>
+                <div className="col-12 col-md-4 text-end">
+                    <button className="btn btn-outline-secondary w-100" onClick={load} disabled={loading}>Refresh</button>
+                </div>
+            </div>
+
+            {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
+
+            <div className="table-responsive border rounded">
+                <table className="table table-hover align-middle m-0">
+                    <thead>
                         <tr>
-                            <th>Avatar</th>
+                            <th style={{ width: 50 }}>Avatar</th>
                             <th>Nickname</th>
                             <th>FID</th>
                             <th>Added (UTC)</th>
                             <th>Last Redeemed (UTC)</th>
                             <th>Codes</th>
-                            <th>Actions</th>
+                            <th className="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {players.map(p => (
                             <React.Fragment key={p.id}>
                                 <tr>
-                                    <td>{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: 16 }} /> : '-'}</td>
-                                    <td>{p.nickname || ''}</td>
-                                    <td>{p.id}</td>
-                                    <td className="text-nowrap">{fmtUTC(p.addedAt)}</td>
-                                    <td className="text-nowrap">{fmtUTC(p.lastRedeemedAt)}</td>
+                                    <td>{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
+                                    <td className="fw-medium">{p.nickname || <span className="text-muted fst-italic">Unknown</span>}</td>
+                                    <td><code>{p.id}</code></td>
+                                    <td className="text-nowrap small text-muted">{fmtUTC(p.addedAt)}</td>
+                                    <td className="text-nowrap small text-muted">{fmtUTC(p.lastRedeemedAt)}</td>
                                     <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
-                                    <td>
-                                        <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}>Remove</button>
+                                    <td className="text-end">
+                                        <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}><i className="bi bi-trash"></i></button>
                                     </td>
                                 </tr>
                                 {expanded.has(p.id) && (
                                     <tr>
-                                        <td colSpan="7">
-                                            {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading...</span></div>}
+                                        <td colSpan="7" className="bg-body-tertiary">
+                                            {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
                                             {codeStatus[p.id]?.data && (
-                                                <div className="d-flex gap-2 flex-wrap">
+                                                <div className="d-flex gap-2 flex-wrap p-2">
                                                     {codeStatus[p.id].data.codes.map(c => {
                                                         const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
                                                         const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
                                                         return (
-                                                            <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1">
-                                                                <span className={`badge ${redeemed ? 'bg-success' : blockedReason ? 'bg-secondary' : 'bg-secondary'}`}>{c.code}</span>
-                                                                {redeemed && <span className="text-success small">Redeemed</span>}
-                                                                {!redeemed && blockedReason === 'expired' && <span className="text-muted small">Expired</span>}
-                                                                {!redeemed && blockedReason === 'limit' && <span className="text-muted small">Claim limit</span>}
-                                                                {!redeemed && !blockedReason && <button className="btn btn-sm btn-outline-primary" onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                                                            <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
+                                                                <span className="fw-bold small">{c.code}</span>
+                                                                {redeemed && <span className="badge bg-success">Redeemed</span>}
+                                                                {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
+                                                                {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
+                                                                {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
                                                             </div>
                                                         )
                                                     })}

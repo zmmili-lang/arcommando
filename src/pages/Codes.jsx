@@ -76,39 +76,54 @@ export default function Codes({ adminPass }) {
 
     return (
         <section>
-            <h2>Codes</h2>
-            <div className="d-flex gap-2 align-items-center">
-                <input className="form-control" style={{ maxWidth: 260 }} placeholder="Gift code" value={code} onChange={e => setCode(e.target.value)} />
-                <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
-                <button className="btn btn-outline-secondary" onClick={load} disabled={loading}>Refresh</button>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <h2 className="m-0">Codes</h2>
             </div>
-            {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
-            {error && <div className="alert alert-danger py-1 my-2" role="alert">{error}</div>}
-            <div className="table-responsive">
-                <table className="table table-sm table-hover align-middle mt-2">
-                    <thead className="table-light">
+
+            <div className="row g-2 mb-3">
+                <div className="col-12 col-md-8">
+                    <div className="input-group">
+                        <input
+                            className="form-control"
+                            placeholder="Gift code"
+                            value={code}
+                            onChange={e => setCode(e.target.value)}
+                        />
+                        <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
+                    </div>
+                </div>
+                <div className="col-12 col-md-4 text-end">
+                    <button className="btn btn-outline-secondary w-100" onClick={load} disabled={loading}>Refresh</button>
+                </div>
+            </div>
+
+            {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
+
+            <div className="table-responsive border rounded">
+                <table className="table table-hover align-middle m-0">
+                    <thead>
                         <tr>
                             <th>Code</th>
-                            <th>Active</th>
+                            <th style={{ width: 80 }}>Active</th>
                             <th>Added (UTC)</th>
                             <th>Last Tried (UTC)</th>
                             <th>Redeemed</th>
-                            <th>Actions</th>
+                            <th className="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {codes.map(c => (
                             <tr key={c.code}>
-                                <td>{c.code}</td>
+                                <td className="fw-bold">{c.code}</td>
                                 <td>
                                     <div className="form-check form-switch">
                                         <input className="form-check-input" type="checkbox" role="switch" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} />
                                     </div>
                                 </td>
-                                <td className="text-nowrap">{fmtUTC(c.addedAt)}</td>
-                                <td className="text-nowrap">{fmtUTC(c.lastTriedAt)}</td>
+                                <td className="text-nowrap small text-muted">{fmtUTC(c.addedAt)}</td>
+                                <td className="text-nowrap small text-muted">{fmtUTC(c.lastTriedAt)}</td>
                                 <td className="text-nowrap">{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
-                                <td><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}>Remove</button></td>
+                                <td className="text-end"><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}><i className="bi bi-trash"></i></button></td>
                             </tr>
                         ))}
                     </tbody>

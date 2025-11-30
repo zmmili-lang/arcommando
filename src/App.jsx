@@ -33,7 +33,7 @@ function SideNav() {
     return (
         <div className="d-flex flex-column gap-2">
             {items.map(it => (
-                <NavLink key={it.to} to={it.to} className={({ isActive }) => `btn btn-sm w-100 text-start d-flex align-items-center gap-2 ${isActive ? 'btn-primary' : 'btn-outline-primary'}`}>
+                <NavLink key={it.to} to={it.to} className={({ isActive }) => `btn w-100 text-start d-flex align-items-center gap-3 ${isActive ? 'btn-primary' : ''}`}>
                     <i className={`bi bi-${it.icon}`}></i>
                     <span>{it.label}</span>
                 </NavLink>
