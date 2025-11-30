@@ -104,7 +104,7 @@ export default function Codes({ adminPass }) {
                             <th style={{ width: 80 }}>Active</th>
                             <th className="d-none-mobile">Added (UTC)</th>
                             <th className="d-none-mobile">Redeemed</th>
-                            <th className="text-end" style={{ width: 60 }}></th>
+                            <th className="text-end" style={{ width: 80 }}></th>
                         </tr>
                     </thead>
                     <tbody>

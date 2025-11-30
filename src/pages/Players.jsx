@@ -143,12 +143,12 @@ export default function Players({ adminPass }) {
                 <table className="table table-hover align-middle m-0">
                     <thead>
                         <tr>
-                            <th style={{ width: 60, textAlign: 'center' }}>Avatar</th>
+                            <th style={{ width: 80, textAlign: 'center' }}>Avatar</th>
                             <th>Nickname</th>
                             <th>FID</th>
                             <th className="d-none-mobile">Added (UTC)</th>
                             <th className="d-none-mobile">Codes</th>
-                            <th className="text-end" style={{ width: 60 }}></th>
+                            <th className="text-end" style={{ width: 80 }}></th>
                         </tr>
                     </thead>
                     <tbody>
