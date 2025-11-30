@@ -34,16 +34,19 @@ export const handler = async (event) => {
         chunks.push(activeCodes.slice(i, i + limit))
     }
 
+    const redemptionResults = []
     for (const chunk of chunks) {
         await Promise.all(chunk.map(async (c) => {
             try {
                 const res = await redeemGiftCode({ playerId, code: c.code })
                 await appendHistory(sql, { ts: Date.now(), playerId, code: c.code, status: res.status, message: res.message, raw: res.raw })
+                redemptionResults.push({ code: c.code, status: res.status, message: res.message })
             } catch (e) {
                 console.error(`Failed to redeem ${c.code} for ${playerId}:`, e)
+                redemptionResults.push({ code: c.code, status: 'error', message: String(e.message || e) })
             }
         }))
     }
 
-    return cors({ ok: true, players })
+    return cors({ ok: true, players, redemptionResults })
 }
