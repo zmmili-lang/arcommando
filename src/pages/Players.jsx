@@ -178,11 +178,10 @@ export default function Players({ adminPass }) {
                                 </tr>
                                 {expandedInfo.has(p.id) && (
                                     <tr className="d-md-none bg-body-tertiary">
-                                        <td colSpan="7" className="p-3">
+                                        <td colSpan="5" className="p-3">
                                             <div className="d-flex flex-column gap-2 small">
                                                 <div>
-                                                    <strong>Full Player ID:</strong>
-                                                    <div><code className="text-break">{p.id}</code></div>
+                                                    <strong>Full Player ID:</strong> <code className="text-break">{p.id}</code>
                                                 </div>
                                                 <div><strong>Added:</strong> {fmtUTC(p.addedAt)}</div>
                                                 <div>
@@ -196,7 +195,7 @@ export default function Players({ adminPass }) {
                                 )}
                                 {expanded.has(p.id) && (
                                     <tr>
-                                        <td colSpan="7" className="bg-body-tertiary">
+                                        <td colSpan="5" className="bg-body-tertiary">
                                             {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
                                             {codeStatus[p.id]?.data && (
                                                 <div className="d-flex gap-2 flex-wrap p-2">
