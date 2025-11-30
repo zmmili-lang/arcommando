@@ -28,6 +28,7 @@
     --bs-primary: var(--accent);
     --bs-primary-rgb: 40, 167, 69;
     --bs-success: var(--accent);
+    --bs-success-rgb: 40, 167, 69;
     --bs-danger: var(--danger);
     --bs-secondary: #4f545c;
 }

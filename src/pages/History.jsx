@@ -25,6 +25,7 @@ export default function History({ adminPass }) {
     const [entries, setEntries] = useState([])
     const [summary, setSummary] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [expanded, setExpanded] = useState(new Set())
 
     const load = async () => {
         setLoading(true)
@@ -41,6 +42,13 @@ export default function History({ adminPass }) {
         if (!confirm(`Clear logs for ${date}?`)) return
         await api('history-clear', { adminPass, method: 'POST', body: { date } })
         await load()
+    }
+
+    const toggleExpand = (i) => {
+        const newExpanded = new Set(expanded)
+        if (newExpanded.has(i)) newExpanded.delete(i)
+        else newExpanded.add(i)
+        setExpanded(newExpanded)
     }
 
     return (
@@ -82,25 +90,42 @@ export default function History({ adminPass }) {
                             <th>Code</th>
                             <th style={{ width: 100 }}>Status</th>
                             <th className="d-none-mobile">Message</th>
+                            <th className="d-md-none" style={{ width: 40 }}></th>
                         </tr>
                     </thead>
                     <tbody>
                         {entries.map((e, i) => (
-                            <tr key={i}>
-                                <td className="text-nowrap small text-muted">{e.ts ? new Date(e.ts).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) : '-'}</td>
-                                <td className="text-truncate" style={{ maxWidth: 120 }} title={e.playerId}>{e.nickname || e.playerId}</td>
-                                <td className="fw-bold small">{e.code}</td>
-                                <td>
-                                    <span className={`badge ${e.status === 'success' ? 'bg-success' : e.status === 'already_redeemed' ? 'bg-warning text-dark' : 'bg-danger'}`}>
-                                        {e.status === 'already_redeemed' ? 'Already' : e.status}
-                                    </span>
-                                </td>
-                                <td className="d-none-mobile small text-muted text-truncate" style={{ maxWidth: 200 }} title={e.message}>{e.message}</td>
-                            </tr>
+                            <React.Fragment key={i}>
+                                <tr onClick={() => toggleExpand(i)} style={{ cursor: 'pointer' }}>
+                                    <td className="text-nowrap small text-muted">{e.ts ? new Date(e.ts).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) : '-'}</td>
+                                    <td className="text-truncate" style={{ maxWidth: 120 }} title={e.playerId}>{e.nickname || e.playerId}</td>
+                                    <td className="fw-bold small">{e.code}</td>
+                                    <td>
+                                        <span className={`badge ${e.status === 'success' ? 'bg-success' : e.status === 'already_redeemed' ? 'bg-warning text-dark' : 'bg-danger'}`}>
+                                            {e.status === 'already_redeemed' ? 'Already' : e.status}
+                                        </span>
+                                    </td>
+                                    <td className="d-none-mobile small text-muted text-truncate" style={{ maxWidth: 200 }} title={e.message}>{e.message}</td>
+                                    <td className="d-md-none text-end text-muted">
+                                        <i className={`bi bi-chevron-${expanded.has(i) ? 'up' : 'down'}`}></i>
+                                    </td>
+                                </tr>
+                                {expanded.has(i) && (
+                                    <tr className="d-md-none bg-body-tertiary">
+                                        <td colSpan="6" className="p-3">
+                                            <div className="d-flex flex-column gap-2 small">
+                                                <div><strong>Player ID:</strong> <code className="text-break">{e.playerId}</code></div>
+                                                <div><strong>Message:</strong> <span className="text-muted">{e.message}</span></div>
+                                                <div><strong>Full Timestamp:</strong> {fmtUTC(e.ts)}</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         ))}
                         {entries.length === 0 && !loading && (
                             <tr>
-                                <td colSpan="5" className="text-center text-muted py-4">No logs for this date</td>
+                                <td colSpan="6" className="text-center text-muted py-4">No logs for this date</td>
                             </tr>
                         )}
                     </tbody>
