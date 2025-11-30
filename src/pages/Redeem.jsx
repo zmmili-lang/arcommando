@@ -83,13 +83,22 @@ export default function Redeem({ adminPass }) {
             )}
             <div className="mt-3">
                 <h4>Live log</h4>
-                <ul>
+                <ul className="list-unstyled">
                     {log.map((l, idx) => (
-                        <li key={idx}>
+                        <li key={idx} className="mb-1 border-bottom pb-1">
                             {l.playerId ? (
-                                <code>{new Date(l.ts).toISOString()} {l.playerId} ({nameOf(l.playerId)}) {l.code}{' => '}{l.status} ({l.message})</code>
+                                <div style={{ fontSize: 13, wordBreak: 'break-word' }}>
+                                    <span className="text-muted me-2">{new Date(l.ts).toLocaleTimeString()}</span>
+                                    <strong>{l.playerId}</strong> <span className="text-muted">({nameOf(l.playerId)})</span>
+                                    <br />
+                                    <span className="badge bg-secondary me-1">{l.code}</span>
+                                    <span className={l.status === 'success' || l.status === 'already_redeemed' ? 'text-success' : 'text-danger'}>
+                                        {l.status}
+                                    </span>
+                                    <span className="text-muted ms-1">({l.message})</span>
+                                </div>
                             ) : (
-                                <code>{typeof l === 'string' ? l : JSON.stringify(l)}</code>
+                                <code style={{ wordBreak: 'break-all' }}>{typeof l === 'string' ? l : JSON.stringify(l)}</code>
                             )}
                         </li>
                     ))}
