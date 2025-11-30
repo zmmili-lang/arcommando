@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Players from './pages/Players.jsx'
 import Codes from './pages/Codes.jsx'
-import Redeem from './pages/Redeem.jsx'
 import History from './pages/History.jsx'
 import Debug from './pages/Debug.jsx'
 import { Toaster, toast } from 'react-hot-toast'
@@ -27,7 +26,6 @@ function SideNav() {
     const items = [
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
-        { to: '/redeem', icon: 'arrow-repeat', label: 'Redeem' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -67,7 +65,6 @@ function BottomNav() {
     const items = [
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
-        { to: '/redeem', icon: 'arrow-repeat', label: 'Redeem' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -125,7 +122,6 @@ export default function App() {
                         <Route index element={<Navigate to="/players" replace />} />
                         <Route path="/players" element={<Players {...common} />} />
                         <Route path="/codes" element={<Codes {...common} />} />
-                        <Route path="/redeem" element={<Redeem {...common} />} />
                         <Route path="/history" element={<History {...common} />} />
                         <Route path="/debug" element={<Debug {...common} />} />
                     </Route>

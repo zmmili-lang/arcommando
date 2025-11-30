@@ -100,6 +100,108 @@ textarea {
     color: #095c00;
 }
 
+:root {
+    color-scheme: light dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+}
+
+header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #ddd;
+}
+
+header h1 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.app-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.app-logo-xl {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+}
+
+nav {
+    display: flex;
+    gap: 8px;
+}
+
+nav button {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+main {
+    padding: 16px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+section {
+    margin-top: 16px;
+}
+
+input,
+select,
+textarea {
+    padding: 6px 8px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+}
+
+.table th {
+    background: #f3f3f3;
+}
+
+.flex {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.badge.ok {
+    background: #d1f7c4;
+    color: #095c00;
+}
+
 .badge.err {
     background: #ffd9d9;
     color: #6a0000;
@@ -144,6 +246,11 @@ textarea {
     .d-flex.gap-2.align-items-center>button {
         flex: 1;
     }
+
+    /* Hide specific columns on mobile */
+    .d-none-mobile {
+        display: none !important;
+    }
 }
 
 /* Desktop Layout (>=768px) */
@@ -172,7 +279,8 @@ textarea {
     align-items: center;
     text-decoration: none;
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 0.75rem;
+    /* 12px */
     gap: 4px;
     padding: 6px 12px;
     border-radius: 8px;
@@ -190,7 +298,8 @@ textarea {
 }
 
 .mobile-nav-item i {
-    font-size: 20px;
+    font-size: 1.25rem;
+    /* 20px */
 }
 
 /* Sidebar Styles */
@@ -204,6 +313,8 @@ textarea {
     border: none;
     font-weight: 500;
     padding: 10px 12px;
+    font-size: 0.9rem;
+    /* 14.4px */
 }
 
 .desktop-sidebar .btn:hover {
@@ -218,4 +329,51 @@ textarea {
 
 .desktop-sidebar .btn.btn-primary:hover {
     background: var(--accent-hover);
+}
+
+/* Typography & Base */
+body {
+    font-size: 1rem;
+    /* 16px base */
+    line-height: 1.5;
+}
+
+h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.small,
+small {
+    font-size: 0.875rem;
+}
+
+/* Table Overrides */
+.table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.table th {
+    background-color: #25262b !important;
+    /* Distinct header color */
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+}
+
+.table td {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

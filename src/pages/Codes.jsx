@@ -81,7 +81,7 @@ export default function Codes({ adminPass }) {
             </div>
 
             <div className="row g-2 mb-3">
-                <div className="col-12 col-md-8">
+                <div className="col-12">
                     <div className="input-group">
                         <input
                             className="form-control"
@@ -91,9 +91,6 @@ export default function Codes({ adminPass }) {
                         />
                         <button className="btn btn-success" onClick={add} disabled={loading}>Add</button>
                     </div>
-                </div>
-                <div className="col-12 col-md-4 text-end">
-                    <button className="btn btn-outline-secondary w-100" onClick={load} disabled={loading}>Refresh</button>
                 </div>
             </div>
 
@@ -105,10 +102,9 @@ export default function Codes({ adminPass }) {
                         <tr>
                             <th>Code</th>
                             <th style={{ width: 80 }}>Active</th>
-                            <th>Added (UTC)</th>
-                            <th>Last Tried (UTC)</th>
-                            <th>Redeemed</th>
-                            <th className="text-end">Actions</th>
+                            <th className="d-none-mobile">Added (UTC)</th>
+                            <th className="d-none-mobile">Redeemed</th>
+                            <th className="text-end" style={{ width: 60 }}></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -120,9 +116,8 @@ export default function Codes({ adminPass }) {
                                         <input className="form-check-input" type="checkbox" role="switch" checked={!!c.active} onChange={e => update(c, { active: e.target.checked })} />
                                     </div>
                                 </td>
-                                <td className="text-nowrap small text-muted">{fmtUTC(c.addedAt)}</td>
-                                <td className="text-nowrap small text-muted">{fmtUTC(c.lastTriedAt)}</td>
-                                <td className="text-nowrap">{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
+                                <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(c.addedAt)}</td>
+                                <td className="text-nowrap d-none-mobile">{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
                                 <td className="text-end"><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}><i className="bi bi-trash"></i></button></td>
                             </tr>
                         ))}

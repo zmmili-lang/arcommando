@@ -124,7 +124,7 @@ export default function Players({ adminPass }) {
             </div>
 
             <div className="row g-2 mb-3">
-                <div className="col-12 col-md-8">
+                <div className="col-12">
                     <div className="input-group">
                         <input
                             className="form-control"
@@ -135,9 +135,6 @@ export default function Players({ adminPass }) {
                         <button className="btn btn-success" onClick={add} disabled={adding}>Add</button>
                     </div>
                 </div>
-                <div className="col-12 col-md-4 text-end">
-                    <button className="btn btn-outline-secondary w-100" onClick={load} disabled={loading}>Refresh</button>
-                </div>
             </div>
 
             {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
@@ -146,32 +143,30 @@ export default function Players({ adminPass }) {
                 <table className="table table-hover align-middle m-0">
                     <thead>
                         <tr>
-                            <th style={{ width: 50 }}>Avatar</th>
+                            <th style={{ width: 60, textAlign: 'center' }}>Avatar</th>
                             <th>Nickname</th>
                             <th>FID</th>
-                            <th>Added (UTC)</th>
-                            <th>Last Redeemed (UTC)</th>
-                            <th>Codes</th>
-                            <th className="text-end">Actions</th>
+                            <th className="d-none-mobile">Added (UTC)</th>
+                            <th className="d-none-mobile">Codes</th>
+                            <th className="text-end" style={{ width: 60 }}></th>
                         </tr>
                     </thead>
                     <tbody>
                         {players.map(p => (
                             <React.Fragment key={p.id}>
                                 <tr>
-                                    <td>{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
+                                    <td className="text-center">{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
                                     <td className="fw-medium">{p.nickname || <span className="text-muted fst-italic">Unknown</span>}</td>
                                     <td><code>{p.id}</code></td>
-                                    <td className="text-nowrap small text-muted">{fmtUTC(p.addedAt)}</td>
-                                    <td className="text-nowrap small text-muted">{fmtUTC(p.lastRedeemedAt)}</td>
-                                    <td><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
+                                    <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(p.addedAt)}</td>
+                                    <td className="d-none-mobile"><button className="btn btn-sm btn-outline-primary" onClick={() => toggleCodes(p)}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
                                     <td className="text-end">
                                         <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}><i className="bi bi-trash"></i></button>
                                     </td>
                                 </tr>
                                 {expanded.has(p.id) && (
                                     <tr>
-                                        <td colSpan="7" className="bg-body-tertiary">
+                                        <td colSpan="6" className="bg-body-tertiary">
                                             {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
                                             {codeStatus[p.id]?.data && (
                                                 <div className="d-flex gap-2 flex-wrap p-2">
