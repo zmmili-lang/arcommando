@@ -145,60 +145,83 @@ export default function Players({ adminPass }) {
                 </div>
             </div>
 
-            <i className={`bi bi-chevron-${expandedInfo.has(p.id) ? 'up' : 'down'}`}></i>
-        </td>
-                                </tr >
-    {
-        expandedInfo.has(p.id) && (
-            <tr className="d-md-none bg-body-tertiary">
-                <td colSpan="5" className="p-3">
-                    <div className="d-flex flex-column gap-2 small">
-                        <div>
-                            <strong>Full Player ID:</strong> <code className="text-break">{p.id}</code>
-                        </div>
-                        <div><strong>Added:</strong> {fmtUTC(p.addedAt)}</div>
-                        <div>
-                            <button className="btn btn-sm btn-outline-primary w-100" onClick={(e) => { e.stopPropagation(); toggleCodes(p); }}>
-                                {expanded.has(p.id) ? 'Hide Codes' : 'View Codes'}
-                            </button>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        )
-    }
-    {
-        expanded.has(p.id) && (
-            <tr>
-                <td colSpan="5" className="bg-body-tertiary">
-                    {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
-                    {codeStatus[p.id]?.data && (
-                        <div className="d-flex gap-2 flex-wrap p-2">
-                            {codeStatus[p.id].data.codes.map(c => {
-                                const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
-                                const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
-                                return (
-                                    <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
-                                        <span className="fw-bold small">{c.code}</span>
-                                        {redeemed && <span className="badge bg-success">Redeemed</span>}
-                                        {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
-                                        {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
-                                        {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </td>
-            </tr>
-        )
-    }
-                            </React.Fragment >
-                        ))
-}
-                    </tbody >
-                </table >
-            </div >
-        </section >
+            {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
+
+            <div className="table-responsive border rounded">
+                <table className="table table-hover align-middle m-0">
+                    <thead>
+                        <tr>
+                            <th style={{ width: 80, textAlign: 'center' }}>Avatar</th>
+                            <th>Nickname</th>
+                            <th className="d-none-mobile">FID</th>
+                            <th className="d-none-mobile">Added (UTC)</th>
+                            <th className="d-none-mobile" style={{ width: 80 }}>Codes</th>
+                            <th className="text-end" style={{ width: 80 }}></th>
+                            <th className="d-md-none" style={{ width: 40 }}></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {players.map(p => (
+                            <React.Fragment key={p.id}>
+                                <tr onClick={() => toggleInfo(p.id)} style={{ cursor: 'pointer' }}>
+                                    <td className="text-center">{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
+                                    <td className="fw-medium">{p.nickname || <span className="text-muted fst-italic">Unknown</span>}</td>
+                                    <td className="d-none-mobile"><code className="small">{p.id.length > 10 ? p.id.substring(0, 10) + '...' : p.id}</code></td>
+                                    <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(p.addedAt)}</td>
+                                    <td className="d-none-mobile"><button className="btn btn-sm btn-outline-primary" onClick={(e) => { e.stopPropagation(); toggleCodes(p); }}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
+                                    <td className="text-end" onClick={(e) => e.stopPropagation()}>
+                                        <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}><i className="bi bi-trash"></i></button>
+                                    </td>
+                                    <td className="d-md-none text-end text-muted">
+                                        <i className={`bi bi-chevron-${expandedInfo.has(p.id) ? 'up' : 'down'}`}></i>
+                                    </td>
+                                </tr>
+                                {expandedInfo.has(p.id) && (
+                                    <tr className="d-md-none bg-body-tertiary">
+                                        <td colSpan="4" className="p-3">
+                                            <div className="d-flex flex-column gap-2 small">
+                                                <div>
+                                                    <strong>Full Player ID:</strong> <code className="text-break">{p.id}</code>
+                                                </div>
+                                                <div><strong>Added:</strong> {fmtUTC(p.addedAt)}</div>
+                                                <div>
+                                                    <button className="btn btn-sm btn-outline-primary w-100" onClick={(e) => { e.stopPropagation(); toggleCodes(p); }}>
+                                                        {expanded.has(p.id) ? 'Hide Codes' : 'View Codes'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                                {expanded.has(p.id) && (
+                                    <tr>
+                                        <td colSpan="4" className="bg-body-tertiary">
+                                            {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
+                                            {codeStatus[p.id]?.data && (
+                                                <div className="d-flex gap-2 flex-wrap p-2">
+                                                    {codeStatus[p.id].data.codes.map(c => {
+                                                        const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
+                                                        const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
+                                                        return (
+                                                            <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
+                                                                <span className="fw-bold small">{c.code}</span>
+                                                                {redeemed && <span className="badge bg-success">Redeemed</span>}
+                                                                {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
+                                                                {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
+                                                                {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     )
 }
