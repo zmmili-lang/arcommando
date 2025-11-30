@@ -73,7 +73,7 @@ export default function History({ adminPass }) {
 
             {summary && (
                 <div className="d-flex gap-2 mb-3 flex-wrap">
-                    <span className="badge bg-success bg-opacity-10 text-success border border-success p-2">Success: {summary.success}</span>
+                    <span className="badge bg-success bg-opacity-10 border border-success p-2">Success: {summary.success}</span>
                     <span className="badge bg-warning bg-opacity-10 text-warning border border-warning p-2">Already: {summary.already_redeemed}</span>
                     <span className="badge bg-danger bg-opacity-10 text-danger border border-danger p-2">Errors: {summary.errors}</span>
                 </div>
@@ -114,8 +114,16 @@ export default function History({ adminPass }) {
                                     <tr className="d-md-none bg-body-tertiary">
                                         <td colSpan="6" className="p-3">
                                             <div className="d-flex flex-column gap-2 small">
-                                                <div><strong>Player ID:</strong> <code className="text-break">{e.playerId}</code></div>
-                                                <div><strong>Message:</strong> <span className="text-muted">{e.message}</span></div>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    {e.avatar && <img src={e.avatar} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
+                                                    <div>
+                                                        <strong>Player ID:</strong> <code className="text-break">{e.playerId}</code>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <strong>Message:</strong>
+                                                    <div className="text-muted text-break" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{e.message}</div>
+                                                </div>
                                                 <div><strong>Full Timestamp:</strong> {fmtUTC(e.ts)}</div>
                                             </div>
                                         </td>
