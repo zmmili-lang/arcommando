@@ -73,9 +73,9 @@ export default function History({ adminPass }) {
 
             {summary && (
                 <div className="d-flex gap-2 mb-3 flex-wrap">
-                    <span className="badge bg-success bg-opacity-10 border border-success p-2">Success: {summary.success}</span>
-                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning p-2">Already: {summary.already_redeemed}</span>
-                    <span className="badge bg-danger bg-opacity-10 text-danger border border-danger p-2">Errors: {summary.errors}</span>
+                    <span className="badge bg-success bg-opacity-10 border border-success p-2">Success: {summary.success || 0}</span>
+                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning p-2">Already: {summary.already_redeemed || 0}</span>
+                    <span className="badge bg-danger bg-opacity-10 text-danger border border-danger p-2">Errors: {summary.error || summary.errors || 0}</span>
                 </div>
             )}
 
