@@ -16,12 +16,21 @@ export const handler = async (event) => {
     const cnt = await sql`SELECT COUNT(*) as c FROM players`
     if (Number(cnt[0].c) >= 100) return cors({ error: 'limit 100 players' }, 400)
 
-    let profile = { nickname: '', avatar_image: '' }
-    try { profile = await fetchPlayerProfile(playerId) } catch { }
+    // Fetch player profile from Kingshot - MUST exist
+    let profile
+    try {
+        profile = await fetchPlayerProfile(playerId)
+        if (!profile || !profile.nickname) {
+            return cors({ error: 'Player not found in Kingshot system. Please verify the Player ID.' }, 404)
+        }
+    } catch (error) {
+        console.error(`Failed to fetch player ${playerId}:`, error.message)
+        return cors({ error: 'Player not found in Kingshot system. Please verify the Player ID.' }, 404)
+    }
 
     const now = Date.now()
     await sql`INSERT INTO players (id, nickname, avatar_image, added_at, last_redeemed_at)
-            VALUES (${playerId}, ${profile.nickname || ''}, ${profile.avatar_image || ''}, ${now}, ${null})`
+            VALUES (${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null})`
 
     const rows = await sql`SELECT id, nickname, avatar_image, added_at, last_redeemed_at FROM players ORDER BY added_at NULLS LAST, id`
     const players = rows.map(r => ({ id: r.id, nickname: r.nickname || '', avatar_image: r.avatar_image || '', addedAt: r.added_at ? Number(r.added_at) : null, lastRedeemedAt: r.last_redeemed_at ? Number(r.last_redeemed_at) : null }))
