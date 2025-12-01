@@ -1,118 +1,93 @@
-import chromium from '@sparticuz/chromium'
-import puppeteer from 'puppeteer-core'
+import * as cheerio from 'cheerio'
 
 export async function scrapeGiftCodes() {
-    let browser = null
     try {
-        // Get executable path for Chromium
-        const executablePath = await chromium.executablePath()
+        console.log('[SCRAPER] Fetching Kingshot gift codes page...')
 
-        // Launch browser with Chromium for Netlify
-        browser = await puppeteer.launch({
-            args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-            defaultViewport: chromium.defaultViewport,
-            executablePath,
-            headless: true,
-        })
-
-        const page = await browser.newPage()
-
-        // Set a user agent to avoid being blocked
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-
-        await page.goto('https://kingshot.net/gift-codes', {
-            waitUntil: 'networkidle0',
-            timeout: 30000
-        })
-
-        // Wait a bit for dynamic content to load
-        await page.waitForTimeout(2000)
-
-        // Extract active gift codes
-        const codes = await page.evaluate(() => {
-            const results = []
-
-            // Try multiple selectors to find code elements
-            const possibleSelectors = [
-                '[data-code]',
-                '.gift-code',
-                '.code-card',
-                '[class*="code"]',
-                '[class*="gift"]'
-            ]
-
-            let codeElements = []
-            for (const selector of possibleSelectors) {
-                const elements = document.querySelectorAll(selector)
-                if (elements.length > 0) {
-                    codeElements = Array.from(elements)
-                    break
-                }
+        // Fetch the HTML page
+        const response = await fetch('https://kingshot.net/gift-codes', {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
+        })
 
-            codeElements.forEach(el => {
-                const codeText = el.getAttribute('data-code') ||
-                    el.querySelector('[data-code]')?.getAttribute('data-code') ||
-                    el.querySelector('.code, .gift-code-text')?.textContent?.trim() ||
-                    el.textContent?.trim()
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
 
-                const statusEl = el.querySelector('.status, .badge, [data-status]')
-                const statusText = statusEl?.textContent?.trim()?.toLowerCase() || ''
+        const html = await response.text()
+        const $ = cheerio.load(html)
 
-                if (codeText && codeText.match(/^[A-Z0-9]{6,15}$/)) {
-                    const isActive = !statusText.includes('expired') &&
-                        !el.className.includes('expired') &&
-                        !el.classList.contains('disabled')
+        const codes = []
 
-                    if (isActive) {
-                        results.push({
-                            code: codeText.toUpperCase().trim(),
-                            status: statusText || 'active',
-                        })
+        // Try to find code elements with various selectors
+        const possibleSelectors = [
+            '[data-code]',
+            '.gift-code',
+            '.code-card',
+            '[class*="code"]',
+            '.active-code'
+        ]
+
+        for (const selector of possibleSelectors) {
+            const elements = $(selector)
+            if (elements.length > 0) {
+                elements.each((i, el) => {
+                    const $el = $(el)
+                    const codeText = $el.attr('data-code') ||
+                        $el.find('[data-code]').attr('data-code') ||
+                        $el.find('.code, .gift-code-text').text().trim() ||
+                        $el.text().trim()
+
+                    const statusText = $el.find('.status, .badge, [data-status]').text().trim().toLowerCase()
+
+                    // Validate code format (6-15 chars, alphanumeric)
+                    if (codeText && /^[A-Z0-9]{6,15}$/i.test(codeText)) {
+                        const isActive = !statusText.includes('expired') &&
+                            !$el.attr('class')?.includes('expired')
+
+                        if (isActive || !statusText) {
+                            codes.push({
+                                code: codeText.toUpperCase().trim(),
+                                status: statusText || 'active'
+                            })
+                        }
                     }
-                }
-            })
-
-            // Fallback: search page text for code patterns near "active" text
-            if (results.length === 0) {
-                const walker = document.createTreeWalker(
-                    document.body,
-                    NodeFilter.SHOW_TEXT,
-                    null,
-                    false
-                )
-
-                let node
-                const foundCodes = new Set()
-                while (node = walker.nextNode()) {
-                    const text = node.textContent
-                    const matches = text.match(/\b[A-Z0-9]{6,15}\b/g)
-                    if (matches) {
-                        matches.forEach(match => {
-                            // Check if this looks like a gift code (has both letters and numbers)
-                            if (match.match(/[A-Z]/) && match.match(/[0-9]/)) {
-                                foundCodes.add(match)
-                            }
-                        })
-                    }
-                }
-
-                foundCodes.forEach(code => {
-                    results.push({ code, status: 'unknown' })
                 })
+
+                if (codes.length > 0) break
+            }
+        }
+
+        // Fallback: search for code patterns in the page text
+        if (codes.length === 0) {
+            console.log('[SCRAPER] No codes found with selectors, trying text search...')
+            const bodyText = $('body').text()
+            const codePattern = /\b([A-Z0-9]{6,15})\b/g
+            const matches = bodyText.matchAll(codePattern)
+
+            const foundCodes = new Set()
+            for (const match of matches) {
+                const code = match[1]
+                // Only include codes that have both letters and numbers
+                if (/[A-Z]/i.test(code) && /[0-9]/.test(code)) {
+                    foundCodes.add(code.toUpperCase())
+                }
             }
 
-            return results
-        })
+            foundCodes.forEach(code => {
+                codes.push({ code, status: 'unknown' })
+            })
+        }
 
         console.log(`[SCRAPER] Extracted ${codes.length} codes from page`)
-        return codes
+
+        // Remove duplicates
+        const uniqueCodes = Array.from(new Map(codes.map(c => [c.code, c])).values())
+
+        return uniqueCodes
     } catch (error) {
         console.error('[SCRAPER] Error:', error)
         throw error
-    } finally {
-        if (browser) {
-            await browser.close()
-        }
     }
 }
