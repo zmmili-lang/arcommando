@@ -26,10 +26,10 @@ export const handler = async (event) => {
 
         // Get existing codes from database
         const existingCodes = await sql`SELECT code FROM codes`
-        const existingCodeSet = new Set(existingCodes.map(c => c.code.toUpperCase()))
+        const existingCodeSet = new Set(existingCodes.map(c => c.code))
 
-        // Filter for new codes only
-        const newCodes = scrapedCodes.filter(c => !existingCodeSet.has(c.code.toUpperCase()))
+        // Filter for new codes only (case-sensitive)
+        const newCodes = scrapedCodes.filter(c => !existingCodeSet.has(c.code))
 
         console.log(`[SCRAPER] ${newCodes.length} new codes to add`)
 
@@ -52,12 +52,16 @@ export const handler = async (event) => {
         // Trigger redemption for all players if codes were added
         if (addedCodes.length > 0) {
             const players = await sql`SELECT id FROM players`
-            console.log(`[SCRAPER] Triggering redemption for ${players.length} players`)
+            console.log(`[SCRAPER] Triggering redemption for ${players.length} players with ${addedCodes.length} new codes`)
 
-            // Call redeem-start for each player (background job will handle it)
+            // Get the base URL from request or use default
+            const baseUrl = process.env.URL || 'https://resonant-seahorse-7d6217.netlify.app'
+
+            // Call redeem-start for each player
             for (const player of players) {
                 try {
-                    await fetch(`${event.headers.origin || 'https://arcommando.netlify.app'}/.netlify/functions/redeem-start`, {
+                    console.log(`[SCRAPER] Triggering redeem for player: ${player.id}`)
+                    const response = await fetch(`${baseUrl}/.netlify/functions/redeem-start`, {
                         method: 'POST',
                         headers: {
                             'content-type': 'application/json',
@@ -65,6 +69,14 @@ export const handler = async (event) => {
                         },
                         body: JSON.stringify({ id: player.id }),
                     })
+
+                    if (!response.ok) {
+                        const errorText = await response.text()
+                        console.error(`[SCRAPER] Redeem failed for ${player.id}: ${response.status} - ${errorText}`)
+                    } else {
+                        const result = await response.json()
+                        console.log(`[SCRAPER] Redeem started for ${player.id}:`, result.message || 'Success')
+                    }
                 } catch (e) {
                     console.error(`[SCRAPER] Failed to trigger redeem for ${player.id}:`, e.message)
                 }

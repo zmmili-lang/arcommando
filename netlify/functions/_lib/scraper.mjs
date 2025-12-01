@@ -20,69 +20,60 @@ export async function scrapeGiftCodes() {
 
         const codes = []
 
-        // Try to find code elements with various selectors
-        const possibleSelectors = [
-            '[data-code]',
-            '.gift-code',
-            '.code-card',
-            '[class*="code"]',
-            '.active-code'
-        ]
+        // Find the "Active Gift Codes" section specifically
+        // Look for the h2 with text "Active Gift Codes" and get elements after it
+        let activeSection = null
+        $('h2').each((i, el) => {
+            const text = $(el).text().trim()
+            if (text.includes('Active') && text.includes('Gift') && text.includes('Code')) {
+                activeSection = $(el)
+                return false // break
+            }
+        })
 
-        for (const selector of possibleSelectors) {
-            const elements = $(selector)
-            if (elements.length > 0) {
-                elements.each((i, el) => {
+        if (activeSection) {
+            console.log('[SCRAPER] Found Active Gift Codes section')
+
+            // Get the next sibling elements until we hit "Expired Gift Codes"
+            let currentEl = activeSection.next()
+            while (currentEl.length > 0) {
+                const tagName = currentEl.prop('tagName')?.toLowerCase()
+                const text = currentEl.text().trim()
+
+                // Stop if we hit the Expired section
+                if (tagName === 'h2' && text.includes('Expired')) {
+                    break
+                }
+
+                // Look for code elements within this section
+                currentEl.find('[data-code], .gift-code, .code-card, [class*="code"]').each((i, el) => {
                     const $el = $(el)
-                    const codeText = $el.attr('data-code') ||
+                    let codeText = $el.attr('data-code') ||
                         $el.find('[data-code]').attr('data-code') ||
                         $el.find('.code, .gift-code-text').text().trim() ||
                         $el.text().trim()
 
-                    const statusText = $el.find('.status, .badge, [data-status]').text().trim().toLowerCase()
+                    // Preserve original case - don't uppercase
+                    if (codeText && /^[A-Za-z0-9]{6,15}$/.test(codeText)) {
+                        const statusText = $el.find('.status, .badge, [data-status]').text().trim().toLowerCase()
+                        const isExpired = statusText.includes('expired') || $el.attr('class')?.includes('expired')
 
-                    // Validate code format (6-15 chars, alphanumeric)
-                    if (codeText && /^[A-Z0-9]{6,15}$/i.test(codeText)) {
-                        const isActive = !statusText.includes('expired') &&
-                            !$el.attr('class')?.includes('expired')
-
-                        if (isActive || !statusText) {
+                        if (!isExpired) {
                             codes.push({
-                                code: codeText.toUpperCase().trim(),
+                                code: codeText.trim(), // Preserve case
                                 status: statusText || 'active'
                             })
                         }
                     }
                 })
 
-                if (codes.length > 0) break
+                currentEl = currentEl.next()
             }
         }
 
-        // Fallback: search for code patterns in the page text
-        if (codes.length === 0) {
-            console.log('[SCRAPER] No codes found with selectors, trying text search...')
-            const bodyText = $('body').text()
-            const codePattern = /\b([A-Z0-9]{6,15})\b/g
-            const matches = bodyText.matchAll(codePattern)
+        console.log(`[SCRAPER] Extracted ${codes.length} codes from Active section`)
 
-            const foundCodes = new Set()
-            for (const match of matches) {
-                const code = match[1]
-                // Only include codes that have both letters and numbers
-                if (/[A-Z]/i.test(code) && /[0-9]/.test(code)) {
-                    foundCodes.add(code.toUpperCase())
-                }
-            }
-
-            foundCodes.forEach(code => {
-                codes.push({ code, status: 'unknown' })
-            })
-        }
-
-        console.log(`[SCRAPER] Extracted ${codes.length} codes from page`)
-
-        // Remove duplicates
+        // Remove duplicates (case-sensitive now)
         const uniqueCodes = Array.from(new Map(codes.map(c => [c.code, c])).values())
 
         return uniqueCodes
