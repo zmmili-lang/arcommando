@@ -20,60 +20,32 @@ export async function scrapeGiftCodes() {
 
         const codes = []
 
-        // Find the "Active Gift Codes" section specifically
-        // Look for the h2 with text "Active Gift Codes" and get elements after it
-        let activeSection = null
-        $('h2').each((i, el) => {
-            const text = $(el).text().trim()
-            if (text.includes('Active') && text.includes('Gift') && text.includes('Code')) {
-                activeSection = $(el)
-                return false // break
+        // Find code cards with data-slot="card" attribute
+        $('[data-slot="card"]').each((i, card) => {
+            const $card = $(card)
+
+            // Check if this card has the "Active" badge (green badge)
+            const badge = $card.find('[data-slot="badge"]').text().trim()
+            const isActive = badge.toLowerCase().includes('active')
+
+            if (isActive) {
+                // Get the code from the div with specific classes
+                const codeText = $card.find('.text-2xl.font-bold.font-mono').text().trim() ||
+                    $card.find('div[class*="font-mono"]').text().trim()
+
+                if (codeText && /^[A-Za-z0-9]{6,15}$/.test(codeText)) {
+                    codes.push({
+                        code: codeText, // Preserve case
+                        status: 'active'
+                    })
+                    console.log(`[SCRAPER] Found active code: ${codeText}`)
+                }
             }
         })
 
-        if (activeSection) {
-            console.log('[SCRAPER] Found Active Gift Codes section')
+        console.log(`[SCRAPER] Extracted ${codes.length} active codes: ${codes.map(c => c.code).join(', ')}`)
 
-            // Get the next sibling elements until we hit "Expired Gift Codes"
-            let currentEl = activeSection.next()
-            while (currentEl.length > 0) {
-                const tagName = currentEl.prop('tagName')?.toLowerCase()
-                const text = currentEl.text().trim()
-
-                // Stop if we hit the Expired section
-                if (tagName === 'h2' && text.includes('Expired')) {
-                    break
-                }
-
-                // Look for code elements within this section
-                currentEl.find('[data-code], .gift-code, .code-card, [class*="code"]').each((i, el) => {
-                    const $el = $(el)
-                    let codeText = $el.attr('data-code') ||
-                        $el.find('[data-code]').attr('data-code') ||
-                        $el.find('.code, .gift-code-text').text().trim() ||
-                        $el.text().trim()
-
-                    // Preserve original case - don't uppercase
-                    if (codeText && /^[A-Za-z0-9]{6,15}$/.test(codeText)) {
-                        const statusText = $el.find('.status, .badge, [data-status]').text().trim().toLowerCase()
-                        const isExpired = statusText.includes('expired') || $el.attr('class')?.includes('expired')
-
-                        if (!isExpired) {
-                            codes.push({
-                                code: codeText.trim(), // Preserve case
-                                status: statusText || 'active'
-                            })
-                        }
-                    }
-                })
-
-                currentEl = currentEl.next()
-            }
-        }
-
-        console.log(`[SCRAPER] Extracted ${codes.length} codes from Active section`)
-
-        // Remove duplicates (case-sensitive now)
+        // Remove duplicates (case-sensitive)
         const uniqueCodes = Array.from(new Map(codes.map(c => [c.code, c])).values())
 
         return uniqueCodes

@@ -22,7 +22,7 @@ export const handler = async (event) => {
         console.log(`[SCRAPER] Found ${scrapedCodes.length} codes`)
 
         if (scrapedCodes.length === 0) {
-            return cors({ message: 'No codes found', added: 0 })
+            return cors({ message: 'No codes found on website', added: 0, foundCodes: [] })
         }
 
         // Get existing codes from database
@@ -35,7 +35,12 @@ export const handler = async (event) => {
         console.log(`[SCRAPER] ${newCodes.length} new codes to add`)
 
         if (newCodes.length === 0) {
-            return cors({ message: 'No new codes', added: 0 })
+            return cors({
+                message: 'No new codes (all already in database)',
+                added: 0,
+                foundCodes: scrapedCodes.map(c => c.code),
+                totalFound: scrapedCodes.length
+            })
         }
 
         // Add new codes to database
@@ -87,7 +92,9 @@ export const handler = async (event) => {
         return cors({
             message: `Added ${addedCodes.length} new codes`,
             added: addedCodes.length,
-            codes: addedCodes,
+            newCodes: addedCodes,
+            foundCodes: scrapedCodes.map(c => c.code),
+            totalFound: scrapedCodes.length
         })
     } catch (error) {
         console.error('[SCRAPER] Error:', error)
