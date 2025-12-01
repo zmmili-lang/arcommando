@@ -4,9 +4,10 @@ import { scrapeGiftCodes } from './_lib/scraper.mjs'
 export const handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') return cors({})
 
-    // Optional: Add basic auth or secret token check
-    const secret = event.headers['x-cron-secret']
+    // Check authentication: header or query parameter
+    const secret = event.headers['x-cron-secret'] || event.queryStringParameters?.secret
     if (secret !== process.env.CRON_SECRET) {
+        console.error('[SCRAPER] Unauthorized attempt. Expected:', process.env.CRON_SECRET?.substring(0, 8) + '...', 'Got:', secret?.substring(0, 8) + '...')
         return cors({ error: 'Unauthorized' }, 401)
     }
 
