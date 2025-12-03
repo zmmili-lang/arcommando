@@ -163,6 +163,14 @@ export default function Spinny({ API_BASE }) {
                 >
                     Touch me, daddy
                 </button>
+
+                <button
+                    className="btn btn-link text-muted text-decoration-none mt-3"
+                    onClick={() => navigate('/spinny')}
+                    style={{ fontSize: '0.9rem' }}
+                >
+                    Spin yourself too <i className="bi bi-arrow-right"></i>
+                </button>
             </div>
         </div>
     )
