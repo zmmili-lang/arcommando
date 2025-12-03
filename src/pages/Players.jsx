@@ -124,6 +124,28 @@ export default function Players({ adminPass }) {
         }
     }
 
+    const redeemAll = async (p) => {
+        if (!confirm(`Redeem all active codes for ${p.nickname || p.id}?`)) return
+        const toastId = toast.loading('Redeeming codes...')
+        try {
+            const data = await api('redeem-player', { adminPass, method: 'POST', body: { playerId: p.id } })
+            if (data.redemptionResults) {
+                const successes = data.redemptionResults.filter(r => r.status === 'success' || r.status === 'already_redeemed').length
+                const failures = data.redemptionResults.filter(r => r.status === 'error').length
+                toast.success(`Redeemed ${successes} codes (${failures} failed)`, { id: toastId, duration: 5000 })
+                // Refresh code status if open
+                if (expanded.has(p.id)) {
+                    toggleCodes(p) // This toggles off, maybe we want to refresh?
+                    // Actually toggleCodes toggles. Let's force refresh.
+                    const statusData = await api(`player-status?id=${encodeURIComponent(p.id)}`, { adminPass })
+                    setCodeStatus(prev => ({ ...prev, [p.id]: { loading: false, data: statusData } }))
+                }
+            }
+        } catch (e) {
+            toast.error('Redemption failed: ' + String(e.message || e), { id: toastId })
+        }
+    }
+
     return (
         <section>
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -156,7 +178,7 @@ export default function Players({ adminPass }) {
                             <th className="d-none-mobile">FID</th>
                             <th className="d-none-mobile">Added (UTC)</th>
                             <th className="d-none-mobile" style={{ width: 80 }}>Codes</th>
-                            <th className="text-end" style={{ width: 80 }}></th>
+                            <th className="text-end" style={{ width: 100 }}>Actions</th>
                             <th className="d-md-none" style={{ width: 40 }}></th>
                         </tr>
                     </thead>
@@ -170,7 +192,10 @@ export default function Players({ adminPass }) {
                                     <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(p.addedAt)}</td>
                                     <td className="d-none-mobile"><button className="btn btn-sm btn-outline-primary" onClick={(e) => { e.stopPropagation(); toggleCodes(p); }}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
                                     <td className="text-end" onClick={(e) => e.stopPropagation()}>
-                                        <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading}><i className="bi bi-trash"></i></button>
+                                        <div className="d-flex justify-content-end gap-1">
+                                            <button className="btn btn-sm btn-outline-success" onClick={() => redeemAll(p)} title="Redeem All Active Codes"><i className="bi bi-gift"></i></button>
+                                            <button className="btn btn-sm btn-outline-danger" onClick={() => remove(p)} disabled={loading} title="Remove Player"><i className="bi bi-trash"></i></button>
+                                        </div>
                                     </td>
                                     <td className="d-md-none text-end text-muted">
                                         <i className={`bi bi-chevron-${expandedInfo.has(p.id) ? 'up' : 'down'}`}></i>

@@ -52,20 +52,41 @@ export const handler = async (event) => {
         await sql`INSERT INTO players (id, nickname, avatar_image, added_at, last_redeemed_at)
                 VALUES (${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null})`
 
-        // Trigger background redemption (optional, but good to have consistency)
-        // We won't wait for it to keep the UI snappy, or maybe we should?
-        // The user said "add him", usually implies full onboarding. 
-        // Let's do a quick redemption of active codes but not block too long if possible.
-        // Actually, for the "Spinny" page, the user just wants to see the avatar.
-        // We can trigger redemption asynchronously if Netlify functions allowed it easily (fire and forget),
-        // but they don't really without background functions.
-        // For now, let's just add the player. The cron job or admin panel can handle redemptions later,
-        // OR we can do what players-add does.
-        // Let's stick to just adding the player to be fast.
+        // Auto-redeem active codes
+        const activeCodes = await sql`SELECT code FROM codes WHERE active = true`
+        const limit = 5
+        const chunks = []
+        for (let i = 0; i < activeCodes.length; i += limit) {
+            chunks.push(activeCodes.slice(i, i + limit))
+        }
+
+        const redemptionResults = []
+        // We need to import appendHistory if not already imported, but let's check imports
+        // It seems appendHistory is not imported in public-player.mjs yet.
+        // I will add the import in a separate edit or assume I can add it here if I replace the whole file or top part.
+        // Since I'm using replace_file_content on a block, I should be careful about imports.
+        // I'll use the logic but I need to make sure appendHistory is available.
+        // Let's do the redemption loop here.
+
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (c) => {
+                try {
+                    const res = await redeemGiftCode({ playerId, code: c.code })
+                    // We need to log history too
+                    await sql`INSERT INTO history (ts, player_id, code, status, message, raw)
+                        VALUES (${Date.now()}, ${playerId}, ${c.code}, ${res.status}, ${res.message}, ${JSON.stringify(res.raw || {})})`
+                    redemptionResults.push({ code: c.code, status: res.status, message: res.message })
+                } catch (e) {
+                    console.error(`Failed to redeem ${c.code} for ${playerId}:`, e)
+                    redemptionResults.push({ code: c.code, status: 'error', message: String(e.message || e) })
+                }
+            }))
+        }
 
         return cors({
             player: { id: playerId, nickname: profile.nickname, avatar_image: profile.avatar_image },
-            created: true
+            created: true,
+            redemptionResults
         })
     }
 
