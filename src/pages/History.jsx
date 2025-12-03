@@ -98,7 +98,7 @@ export default function History({ adminPass }) {
                             <React.Fragment key={i}>
                                 <tr onClick={() => toggleExpand(i)} style={{ cursor: 'pointer' }}>
                                     <td className="text-nowrap small text-muted">{e.ts ? new Date(e.ts).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) : '-'}</td>
-                                    <td className="text-truncate" style={{ maxWidth: 120 }} title={e.playerId}>{e.nickname || e.playerId}</td>
+                                    <td className="text-break" style={{ minWidth: 100 }}>{e.nickname || e.playerId}</td>
                                     <td className="fw-bold small">{e.code}</td>
                                     <td>
                                         <span className={`badge ${e.status === 'success' ? 'bg-success' : e.status === 'already_redeemed' ? 'bg-warning text-dark' : 'bg-danger'}`}>

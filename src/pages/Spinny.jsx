@@ -117,6 +117,7 @@ export default function Spinny({ API_BASE }) {
         return (
             <div className="spinny-container">
                 <div className="player-input-card">
+                    <img src="/logo.png" alt="ARCommando" style={{ width: 80, marginBottom: 20 }} />
                     <h1>Enter Player ID</h1>
                     <form onSubmit={handleSubmit}>
                         <div className="input-group input-group-dark mb-3">
@@ -136,6 +137,9 @@ export default function Spinny({ API_BASE }) {
                             If you exist in Kingshot, we'll find you. If not, we'll add you.
                         </p>
                     </form>
+                </div>
+                <div className="mt-4 text-muted small opacity-50">
+                    With &lt;3 from [ARC] Mili (716)
                 </div>
             </div>
         )
@@ -186,6 +190,9 @@ export default function Spinny({ API_BASE }) {
                 >
                     Spin yourself too <i className="bi bi-arrow-right"></i>
                 </button>
+            </div>
+            <div className="mt-auto pt-4 text-muted small opacity-50">
+                With &lt;3 from [ARC] Mili (716)
             </div>
         </div>
     )

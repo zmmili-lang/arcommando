@@ -185,7 +185,7 @@ export default function Players({ adminPass }) {
                 <table className="table table-hover align-middle m-0">
                     <thead>
                         <tr>
-                            <th style={{ width: 80, textAlign: 'center' }}>Avatar</th>
+                            <th className="d-none d-sm-table-cell" style={{ width: 80, textAlign: 'center' }}>Avatar</th>
                             <th>Nickname</th>
                             <th className="d-none-mobile">FID</th>
                             <th className="d-none-mobile">Added (UTC)</th>
@@ -198,8 +198,8 @@ export default function Players({ adminPass }) {
                         {players.map(p => (
                             <React.Fragment key={p.id}>
                                 <tr onClick={() => toggleInfo(p.id)} style={{ cursor: 'pointer' }}>
-                                    <td className="text-center">{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
-                                    <td className="fw-medium">{p.nickname || <span className="text-muted fst-italic">Unknown</span>}</td>
+                                    <td className="text-center d-none d-sm-table-cell">{p.avatar_image ? <img src={p.avatar_image} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : '-'}</td>
+                                    <td className="fw-medium text-break">{p.nickname || <span className="text-muted fst-italic">Unknown</span>}</td>
                                     <td className="d-none-mobile"><code className="small">{p.id.length > 10 ? p.id.substring(0, 10) + '...' : p.id}</code></td>
                                     <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(p.addedAt)}</td>
                                     <td className="d-none-mobile"><button className="btn btn-sm btn-outline-primary" onClick={(e) => { e.stopPropagation(); toggleCodes(p); }}>{expanded.has(p.id) ? 'Hide' : 'View'}</button></td>
