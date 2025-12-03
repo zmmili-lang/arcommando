@@ -130,9 +130,15 @@ export default function Players({ adminPass }) {
         try {
             const data = await api('redeem-player', { adminPass, method: 'POST', body: { playerId: p.id } })
             if (data.redemptionResults) {
-                const successes = data.redemptionResults.filter(r => r.status === 'success' || r.status === 'already_redeemed').length
+                const newSuccess = data.redemptionResults.filter(r => r.status === 'success').length
+                const alreadyRedeemed = data.redemptionResults.filter(r => r.status === 'already_redeemed').length
                 const failures = data.redemptionResults.filter(r => r.status === 'error').length
-                toast.success(`Redeemed ${successes} codes (${failures} failed)`, { id: toastId, duration: 5000 })
+
+                let msg = `Redeemed ${newSuccess} new codes`
+                if (alreadyRedeemed > 0) msg += `, ${alreadyRedeemed} already redeemed`
+                if (failures > 0) msg += ` (${failures} failed)`
+
+                toast.success(msg, { id: toastId, duration: 5000 })
                 // Refresh code status if open
                 if (expanded.has(p.id)) {
                     toggleCodes(p) // This toggles off, maybe we want to refresh?
