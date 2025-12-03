@@ -18,6 +18,9 @@ export default function Spinny({ API_BASE }) {
     useEffect(() => {
         if (slug) {
             fetchPlayer(slug)
+        } else {
+            setPlayer(null)
+            setLoading(false)
         }
     }, [slug])
 
