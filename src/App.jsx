@@ -107,26 +107,36 @@ function Layout({ logout, common }) {
     )
 }
 
+import Spinny from './pages/Spinny.jsx'
+
 export default function App() {
     const { pass, setTyped, typed, tryLogin, logout, isAuthed, error } = useAdminPass()
     const common = useMemo(() => ({ API_BASE, adminPass: pass }), [pass])
 
     return (
         <HashRouter>
-            {!isAuthed ? (
-                <Login setTyped={setTyped} typed={typed} tryLogin={tryLogin} error={error} />
-            ) : null}
-            {isAuthed && (
-                <Routes>
-                    <Route path="/" element={<Layout logout={logout} common={common} />}>
-                        <Route index element={<Navigate to="/players" replace />} />
-                        <Route path="/players" element={<Players {...common} />} />
-                        <Route path="/codes" element={<Codes {...common} />} />
-                        <Route path="/history" element={<History {...common} />} />
-                        <Route path="/debug" element={<Debug {...common} />} />
-                    </Route>
-                </Routes>
-            )}
+            <Routes>
+                {/* Public Routes */}
+                <Route path="/spinny" element={<Spinny API_BASE={API_BASE} />} />
+                <Route path="/spinny/:slug" element={<Spinny API_BASE={API_BASE} />} />
+
+                {/* Admin Routes */}
+                <Route path="/*" element={
+                    !isAuthed ? (
+                        <Login setTyped={setTyped} typed={typed} tryLogin={tryLogin} error={error} />
+                    ) : (
+                        <Routes>
+                            <Route path="/" element={<Layout logout={logout} common={common} />}>
+                                <Route index element={<Navigate to="/players" replace />} />
+                                <Route path="/players" element={<Players {...common} />} />
+                                <Route path="/codes" element={<Codes {...common} />} />
+                                <Route path="/history" element={<History {...common} />} />
+                                <Route path="/debug" element={<Debug {...common} />} />
+                            </Route>
+                        </Routes>
+                    )
+                } />
+            </Routes>
             <Toaster position="top-right" />
         </HashRouter>
     )

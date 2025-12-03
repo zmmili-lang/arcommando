@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSFiddle me0qjwvg</title>
+
+  <style>
+    body {
+    margin: 0;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #36393f;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+}
+
+.avatar-container {
+    position: relative;
+    display: inline-block;
+}
+
+.avatar__75742 {
+    position: relative;
+     transform: scale(3.33);
+}
+
+.wrapper__44b0c {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.mask__44b0c {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.avatarStack__44b0c {
+    width: 100%;
+    height: 100%;
+}
+
+.avatar__44b0c {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatarDecoration__44b0c {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    pointer-events: none;
+}
+
+.rotating-content {
+    transition: transform 0.1s linear;
+    overflow: hidden;
+    border-radius: 50%;
+}
+
+.rotating-content.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.rotate-button {
+    position: absolute;
+    top: 0px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    margin: 0 auto;
+    background: #5865f2;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.rotate-button:hover {
+    background: #4752c4;
+    transform: scale(1.05);
+}
+
+.rotate-button:active {
+    transform: scale(0.95);
+}
+
+.rotate-button svg {
+    width: 18px;
+    height: 18px;
+    fill: white;
+}
+  </style>
+
+  
+</head>
+<body>
+  <div class="avatar-container">
+    <div class="avatar__75742">
+        <div class="wrapper__44b0c" role="img" aria-label="automatic7shot, Offline">
+            <svg width="138" height="138" viewBox="0 0 138 138" class="mask__44b0c svg__44b0c" aria-hidden="true">
+                <foreignObject x="0" y="0" width="120" height="120" mask="url(#svg-mask-avatar-status-round-120)">
+                    <div class="avatarStack__44b0c">
+                        <div class="rotating-content" id="rotatingAvatar">
+                            <img alt=" " class="avatar__44b0c" aria-hidden="true" src="https://i.imgur.com/BbbgFxP.png">
+                        </div>
+                    </div>
+                </foreignObject>
+            </svg>
+            <svg width="162" height="144" viewBox="0 0 162 144" class="avatarDecoration__44b0c" aria-hidden="true">
+                <foreignObject x="0" y="0" width="144" height="144" mask="url(#svg-mask-avatar-decoration-status-round-120)">
+                    <div class="avatarStack__44b0c">
+                        <img class="avatar__44b0c" alt=" " aria-hidden="true" src="https://i.imgur.com/jTeSEEM.png">
+                    </div>
+                </foreignObject>
+            </svg>
+        </div>
+    </div>
+    <button class="rotate-button" id="rotateBtn" aria-label="Rotate avatar">
+      Touch me, daddy
+    </button>
+</div>
+
+<audio id="rotateSound" preload="auto">
+    <source src="https://www.myinstants.com/media/sounds/o-ii-a-i-o-iii-a-i.mp3" type="audio/mpeg">
+</audio>
+
+  <script>
+    const rotateBtn = document.getElementById('rotateBtn');
+const rotatingAvatar = document.getElementById('rotatingAvatar');
+const rotateSound = document.getElementById('rotateSound');
+
+let isPressed = false;
+let audioPromise = null;
+
+function startRotation() {
+    if (isPressed) return;
+    isPressed = true;
+    
+    rotatingAvatar.classList.add('spinning');
+    
+    rotateSound.currentTime = 0;
+    audioPromise = rotateSound.play();
+    if (audioPromise !== undefined) {
+        audioPromise.catch(err => {
+            console.log('Audio play failed:', err);
+        });
+    }
+}
+
+function stopRotation() {
+    if (!isPressed) return;
+    isPressed = false;
+    
+    rotatingAvatar.classList.remove('spinning');
+    
+    if (audioPromise !== undefined) {
+        audioPromise.then(() => {
+            rotateSound.pause();
+            rotateSound.currentTime = 0;
+        }).catch(() => {
+            // Audio wasn't playing yet
+        });
+    } else {
+        rotateSound.pause();
+        rotateSound.currentTime = 0;
+    }
+}
+
+rotateBtn.addEventListener('mousedown', startRotation);
+rotateBtn.addEventListener('mouseup', stopRotation);
+rotateBtn.addEventListener('mouseleave', stopRotation);
+
+rotateBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startRotation();
+});
+
+rotateBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    stopRotation();
+});
+
+rotateBtn.addEventListener('touchcancel', stopRotation);
+  </script>
+</body>
+</html>
