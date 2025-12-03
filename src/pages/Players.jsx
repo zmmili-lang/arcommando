@@ -55,9 +55,15 @@ export default function Players({ adminPass }) {
             setPlayers(data.players || [])
 
             if (data.redemptionResults && data.redemptionResults.length > 0) {
-                const successes = data.redemptionResults.filter(r => r.status === 'success' || r.status === 'already_redeemed').length
+                const newSuccess = data.redemptionResults.filter(r => r.status === 'success').length
+                const alreadyRedeemed = data.redemptionResults.filter(r => r.status === 'already_redeemed').length
                 const failures = data.redemptionResults.filter(r => r.status === 'error').length
-                toast(`Redeemed ${successes} codes (${failures} failed)`, { icon: '🎁', duration: 5000 })
+
+                let msg = `Redeemed ${newSuccess} new codes`
+                if (alreadyRedeemed > 0) msg += `, ${alreadyRedeemed} already redeemed`
+                if (failures > 0) msg += ` (${failures} failed)`
+
+                toast(msg, { icon: '🎁', duration: 5000 })
             }
         } catch (e) { setError(String(e.message || e)); toast.error('Failed to add player') } finally { setAdding(false) }
     }
