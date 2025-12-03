@@ -102,7 +102,7 @@ export default function History({ adminPass }) {
                                     <td className="fw-bold small">{e.code}</td>
                                     <td>
                                         <span className={`badge ${e.status === 'success' ? 'bg-success' : e.status === 'already_redeemed' ? 'bg-warning text-dark' : 'bg-danger'}`}>
-                                            {e.status === 'already_redeemed' ? 'Already' : e.status}
+                                            {e.status === 'already_redeemed' ? 'Already Redeemed' : e.status}
                                         </span>
                                     </td>
                                     <td className="d-none-mobile small text-muted text-truncate" style={{ maxWidth: 200 }} title={e.message}>{e.message}</td>
@@ -110,25 +110,27 @@ export default function History({ adminPass }) {
                                         <i className={`bi bi-chevron-${expanded.has(i) ? 'up' : 'down'}`}></i>
                                     </td>
                                 </tr>
-                                {expanded.has(i) && (
-                                    <tr className="d-md-none bg-body-tertiary">
-                                        <td colSpan="5" className="p-3">
-                                            <div className="d-flex flex-column gap-2 small">
-                                                <div className="d-flex align-items-center gap-2">
-                                                    {e.avatar && <img src={e.avatar} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
-                                                    <div>
-                                                        <strong>Player ID:</strong> <code className="text-break">{e.playerId}</code>
+                                {
+                                    expanded.has(i) && (
+                                        <tr className="d-md-none bg-body-tertiary">
+                                            <td colSpan="5" className="p-3">
+                                                <div className="d-flex flex-column gap-2 small">
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        {e.avatar && <img src={e.avatar} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
+                                                        <div>
+                                                            <strong>Player ID:</strong> <code className="text-break">{e.playerId}</code>
+                                                        </div>
                                                     </div>
+                                                    <div>
+                                                        <strong>Message:</strong>
+                                                        <div className="text-muted text-break" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{e.message}</div>
+                                                    </div>
+                                                    <div><strong>Full Timestamp:</strong> {fmtUTC(e.ts)}</div>
                                                 </div>
-                                                <div>
-                                                    <strong>Message:</strong>
-                                                    <div className="text-muted text-break" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{e.message}</div>
-                                                </div>
-                                                <div><strong>Full Timestamp:</strong> {fmtUTC(e.ts)}</div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
+                                            </td>
+                                        </tr>
+                                    )
+                                }
                             </React.Fragment>
                         ))}
                         {entries.length === 0 && !loading && (
@@ -139,6 +141,6 @@ export default function History({ adminPass }) {
                     </tbody>
                 </table>
             </div>
-        </section>
+        </section >
     )
 }
