@@ -36,7 +36,7 @@ export default function Codes({ adminPass }) {
     useEffect(() => { load() }, [])
 
     const add = async () => {
-        const c = code.trim().toUpperCase()
+        const c = code.trim()
         if (!c) return
         setLoading(true)
         setError('')

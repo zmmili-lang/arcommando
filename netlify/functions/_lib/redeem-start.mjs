@@ -9,7 +9,7 @@ export const handler = async (event) => {
     const sql = getSql()
     const body = parseBody(event)
 
-    const onlyCode = body?.onlyCode ? String(body.onlyCode).trim().toUpperCase() : null
+    const onlyCode = body?.onlyCode ? String(body.onlyCode).trim() : null
     const onlyPlayer = body?.onlyPlayer ? String(body.onlyPlayer).trim() : null
 
     if (!onlyCode && !onlyPlayer) {
