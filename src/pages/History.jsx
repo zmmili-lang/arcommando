@@ -113,7 +113,7 @@ export default function History({ adminPass }) {
                                 {
                                     expanded.has(i) && (
                                         <tr className="d-md-none bg-body-tertiary">
-                                            <td colSpan="5" className="p-3">
+                                            <td colSpan="6" className="p-3">
                                                 <div className="d-flex flex-column gap-2 small">
                                                     <div className="d-flex align-items-center gap-2">
                                                         {e.avatar && <img src={e.avatar} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />}
