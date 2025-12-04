@@ -85,7 +85,7 @@ export default function History({ adminPass }) {
                 <table className="table table-hover align-middle m-0">
                     <thead>
                         <tr>
-                            <th style={{ width: 100 }}>Time</th>
+                            <th className="d-none-mobile" style={{ width: 100 }}>Time</th>
                             <th>Player</th>
                             <th>Code</th>
                             <th style={{ width: 100 }}>Status</th>
@@ -97,7 +97,7 @@ export default function History({ adminPass }) {
                         {entries.map((e, i) => (
                             <React.Fragment key={i}>
                                 <tr onClick={() => toggleExpand(i)} style={{ cursor: 'pointer' }}>
-                                    <td className="text-nowrap small text-muted">{e.ts ? new Date(e.ts).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) : '-'}</td>
+                                    <td className="text-nowrap small text-muted d-none-mobile">{e.ts ? new Date(e.ts).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) : '-'}</td>
                                     <td className="text-break" style={{ minWidth: 100 }}>{e.nickname || e.playerId}</td>
                                     <td className="fw-bold small">{e.code}</td>
                                     <td>

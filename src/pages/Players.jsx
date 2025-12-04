@@ -186,11 +186,11 @@ export default function Players({ adminPass }) {
                     <thead>
                         <tr>
                             <th className="d-none d-sm-table-cell" style={{ width: 80, textAlign: 'center' }}>Avatar</th>
-                            <th>Nickname</th>
+                            <th style={{ minWidth: 120 }}>Nickname</th>
                             <th className="d-none-mobile">FID</th>
                             <th className="d-none-mobile">Added (UTC)</th>
                             <th className="d-none-mobile" style={{ width: 80 }}>Codes</th>
-                            <th className="text-end" style={{ width: 100 }}>Actions</th>
+                            <th className="text-end" style={{ width: 100 }}><span className="d-none d-sm-inline">Actions</span></th>
                             <th className="d-md-none" style={{ width: 40 }}></th>
                         </tr>
                     </thead>
