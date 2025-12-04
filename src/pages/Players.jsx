@@ -215,7 +215,7 @@ export default function Players({ adminPass }) {
                                 </tr>
                                 {expandedInfo.has(p.id) && (
                                     <tr className="d-md-none bg-body-tertiary">
-                                        <td colSpan="7" className="p-3">
+                                        <td colSpan="3" className="p-3">
                                             <div className="d-flex flex-column gap-2 small">
                                                 <div>
                                                     <strong>Full Player ID:</strong> <code className="text-break">{p.id}</code>
@@ -231,28 +231,54 @@ export default function Players({ adminPass }) {
                                     </tr>
                                 )}
                                 {expanded.has(p.id) && (
-                                    <tr>
-                                        <td colSpan="7" className="bg-body-tertiary">
-                                            {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
-                                            {codeStatus[p.id]?.data && (
-                                                <div className="d-flex gap-2 flex-wrap p-2">
-                                                    {codeStatus[p.id].data.codes.map(c => {
-                                                        const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
-                                                        const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
-                                                        return (
-                                                            <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
-                                                                <span className="fw-bold small">{c.code}</span>
-                                                                {redeemed && <span className="badge bg-success">Redeemed</span>}
-                                                                {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
-                                                                {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
-                                                                {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
+                                    <>
+                                        {/* Mobile Expanded Row */}
+                                        <tr className="d-md-none">
+                                            <td colSpan="3" className="bg-body-tertiary">
+                                                {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
+                                                {codeStatus[p.id]?.data && (
+                                                    <div className="d-flex gap-2 flex-wrap p-2">
+                                                        {codeStatus[p.id].data.codes.map(c => {
+                                                            const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
+                                                            const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
+                                                            return (
+                                                                <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
+                                                                    <span className="fw-bold small">{c.code}</span>
+                                                                    {redeemed && <span className="badge bg-success">Redeemed</span>}
+                                                                    {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
+                                                                    {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
+                                                                    {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {/* Desktop Expanded Row */}
+                                        <tr className="d-none d-md-table-row">
+                                            <td colSpan="6" className="bg-body-tertiary">
+                                                {codeStatus[p.id]?.loading && <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>}
+                                                {codeStatus[p.id]?.data && (
+                                                    <div className="d-flex gap-2 flex-wrap p-2">
+                                                        {codeStatus[p.id].data.codes.map(c => {
+                                                            const redeemed = codeStatus[p.id].data.redeemed.includes(c.code)
+                                                            const blockedReason = codeStatus[p.id].data.blocked?.[c.code]
+                                                            return (
+                                                                <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-2 py-1 bg-body">
+                                                                    <span className="fw-bold small">{c.code}</span>
+                                                                    {redeemed && <span className="badge bg-success">Redeemed</span>}
+                                                                    {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
+                                                                    {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
+                                                                    {!redeemed && !blockedReason && <button className="btn btn-xs btn-primary py-0" style={{ fontSize: 10 }} onClick={() => redeemOne(p.id, c.code)}>Redeem</button>}
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    </>
                                 )}
                             </React.Fragment>
                         ))}
