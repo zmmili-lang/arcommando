@@ -1,6 +1,5 @@
 import { cors, ensureSchema, getSql, requireAdmin } from './_lib/_utils.js'
 import { scrapeGiftCodes } from './_lib/scraper.mjs'
-import { sendEmail } from './_lib/email.mjs'
 
 export const handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') return cors({})
@@ -44,40 +43,36 @@ export const handler = async (event) => {
             })
         }
 
-        // Add new codes to database as INACTIVE
-        const addedCodes = []
-        for (const { code } of newCodes) {
-            try {
-                // Insert as active=false so it doesn't trigger auto-redemption if we had it, 
-                // and so the user has to manually approve it.
-                await sql`INSERT INTO codes (code, active, added_at) VALUES (${code}, ${false}, ${Date.now()})`
-                addedCodes.push(code)
-                console.log(`[SCRAPER] Added inactive code: ${code}`)
-            } catch (e) {
-                console.error(`[SCRAPER] Failed to add code ${code}:`, e.message)
+        // Do NOT add to database automatically.
+        // Just notify via Webhook (e.g. Discord)
+        const newCodesList = newCodes.map(c => c.code)
+
+        if (newCodesList.length > 0) {
+            console.log(`[SCRAPER] Found ${newCodesList.length} new codes: ${newCodesList.join(', ')}`)
+
+            const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+            if (webhookUrl) {
+                try {
+                    const content = `🎁 **New Kingshot Gift Codes Found!**\n\n${newCodesList.map(c => `\`${c}\``).join('\n')}\n\nPlease add them manually in the dashboard.`
+
+                    await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content })
+                    })
+                    console.log('[SCRAPER] Sent Discord webhook notification')
+                } catch (e) {
+                    console.error('[SCRAPER] Failed to send webhook:', e)
+                }
+            } else {
+                console.log('[SCRAPER] No DISCORD_WEBHOOK_URL configured. Skipping notification.')
             }
         }
 
-        // Send email notification
-        if (addedCodes.length > 0) {
-            const subject = `[ARCommando] Found ${addedCodes.length} New Gift Codes`
-            const text = `Found the following new gift codes:\n\n${addedCodes.join('\n')}\n\nThey have been added to the database as INACTIVE. Please log in to activate/redeem them.`
-            const html = `
-                <h2>New Gift Codes Found</h2>
-                <ul>
-                    ${addedCodes.map(c => `<li><strong>${c}</strong></li>`).join('')}
-                </ul>
-                <p>These codes have been added to the database as <strong>INACTIVE</strong>.</p>
-                <p>Please <a href="https://arcommando.netlify.app/codes">log in to the dashboard</a> to activate and redeem them.</p>
-            `
-
-            await sendEmail({ subject, text, html })
-        }
-
         return cors({
-            message: `Found ${addedCodes.length} new codes (added as inactive, emailed)`,
-            added: addedCodes.length,
-            newCodes: addedCodes,
+            message: `Found ${newCodesList.length} new codes (notified via webhook)`,
+            added: 0,
+            newCodes: newCodesList,
             foundCodes: scrapedCodes.map(c => c.code),
             totalFound: scrapedCodes.length
         })
