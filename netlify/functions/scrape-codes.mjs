@@ -67,11 +67,21 @@ export const handler = async (event) => {
             } else {
                 console.log('[SCRAPER] No DISCORD_WEBHOOK_URL configured. Skipping notification.')
             }
+
+            // Insert as active=false to prevent duplicate notifications in the future
+            for (const code of newCodesList) {
+                try {
+                    await sql`INSERT INTO codes (code, active, added_at, note) VALUES (${code}, ${false}, ${Date.now()}, ${'Scraped (Pending)'})`
+                    console.log(`[SCRAPER] Added inactive code: ${code}`)
+                } catch (e) {
+                    console.error(`[SCRAPER] Failed to add code ${code}:`, e.message)
+                }
+            }
         }
 
         return cors({
-            message: `Found ${newCodesList.length} new codes (notified via webhook)`,
-            added: 0,
+            message: `Found ${newCodesList.length} new codes (notified & saved as inactive)`,
+            added: newCodesList.length,
             newCodes: newCodesList,
             foundCodes: scrapedCodes.map(c => c.code),
             totalFound: scrapedCodes.length
