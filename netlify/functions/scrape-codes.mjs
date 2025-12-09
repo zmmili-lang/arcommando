@@ -1,5 +1,6 @@
 import { cors, ensureSchema, getSql, requireAdmin } from './_lib/_utils.js'
 import { scrapeGiftCodes } from './_lib/scraper.mjs'
+import { sendEmail } from './_lib/email.mjs'
 
 export const handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') return cors({})
@@ -43,54 +44,38 @@ export const handler = async (event) => {
             })
         }
 
-        // Add new codes to database
+        // Add new codes to database as INACTIVE
         const addedCodes = []
         for (const { code } of newCodes) {
             try {
-                await sql`INSERT INTO codes (code, added_at) VALUES (${code}, ${Date.now()})`
+                // Insert as active=false so it doesn't trigger auto-redemption if we had it, 
+                // and so the user has to manually approve it.
+                await sql`INSERT INTO codes (code, active, added_at) VALUES (${code}, ${false}, ${Date.now()})`
                 addedCodes.push(code)
-                console.log(`[SCRAPER] Added code: ${code}`)
+                console.log(`[SCRAPER] Added inactive code: ${code}`)
             } catch (e) {
                 console.error(`[SCRAPER] Failed to add code ${code}:`, e.message)
             }
         }
 
-        // Trigger redemption for all players if codes were added
+        // Send email notification
         if (addedCodes.length > 0) {
-            const players = await sql`SELECT id FROM players`
-            console.log(`[SCRAPER] Triggering redemption for ${players.length} players with ${addedCodes.length} new codes`)
+            const subject = `[ARCommando] Found ${addedCodes.length} New Gift Codes`
+            const text = `Found the following new gift codes:\n\n${addedCodes.join('\n')}\n\nThey have been added to the database as INACTIVE. Please log in to activate/redeem them.`
+            const html = `
+                <h2>New Gift Codes Found</h2>
+                <ul>
+                    ${addedCodes.map(c => `<li><strong>${c}</strong></li>`).join('')}
+                </ul>
+                <p>These codes have been added to the database as <strong>INACTIVE</strong>.</p>
+                <p>Please <a href="https://arcommando.netlify.app/codes">log in to the dashboard</a> to activate and redeem them.</p>
+            `
 
-            // Get the base URL from request or use default
-            const baseUrl = process.env.URL || 'https://resonant-seahorse-7d6217.netlify.app'
-
-            // Call redeem-start for each player
-            for (const player of players) {
-                try {
-                    console.log(`[SCRAPER] Triggering redeem for player: ${player.id}`)
-                    const response = await fetch(`${baseUrl}/.netlify/functions/redeem-start`, {
-                        method: 'POST',
-                        headers: {
-                            'content-type': 'application/json',
-                            'x-admin-pass': process.env.ADMIN_PASS || '',
-                        },
-                        body: JSON.stringify({ id: player.id }),
-                    })
-
-                    if (!response.ok) {
-                        const errorText = await response.text()
-                        console.error(`[SCRAPER] Redeem failed for ${player.id}: ${response.status} - ${errorText}`)
-                    } else {
-                        const result = await response.json()
-                        console.log(`[SCRAPER] Redeem started for ${player.id}:`, result.message || 'Success')
-                    }
-                } catch (e) {
-                    console.error(`[SCRAPER] Failed to trigger redeem for ${player.id}:`, e.message)
-                }
-            }
+            await sendEmail({ subject, text, html })
         }
 
         return cors({
-            message: `Added ${addedCodes.length} new codes`,
+            message: `Found ${addedCodes.length} new codes (added as inactive, emailed)`,
             added: addedCodes.length,
             newCodes: addedCodes,
             foundCodes: scrapedCodes.map(c => c.code),
