@@ -3,6 +3,8 @@ import Players from './pages/Players.jsx'
 import Codes from './pages/Codes.jsx'
 import History from './pages/History.jsx'
 import Debug from './pages/Debug.jsx'
+import Leaderboard from './pages/Leaderboard.jsx'
+import LeaderboardPlayer from './pages/LeaderboardPlayer.jsx'
 import { Toaster, toast } from 'react-hot-toast'
 import { HashRouter, Routes, Route, NavLink, Navigate, Outlet } from 'react-router-dom'
 
@@ -26,6 +28,7 @@ function SideNav() {
     const items = [
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
+        { to: '/leaderboard', icon: 'trophy-fill', label: 'Leaderboard' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -65,6 +68,7 @@ function BottomNav() {
     const items = [
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
+        { to: '/leaderboard', icon: 'trophy-fill', label: 'Leaderboard' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -130,6 +134,8 @@ export default function App() {
                                 <Route index element={<Navigate to="/players" replace />} />
                                 <Route path="/players" element={<Players {...common} />} />
                                 <Route path="/codes" element={<Codes {...common} />} />
+                                <Route path="/leaderboard" element={<Leaderboard {...common} />} />
+                                <Route path="/leaderboard/:playerName" element={<LeaderboardPlayer {...common} />} />
                                 <Route path="/history" element={<History {...common} />} />
                                 <Route path="/debug" element={<Debug {...common} />} />
                             </Route>

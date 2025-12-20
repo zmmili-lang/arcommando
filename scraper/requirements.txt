@@ -1,0 +1,10 @@
+# Phase 1 Dependencies
+pure-python-adb==0.3.0.dev0
+
+# Phase 2 Dependencies (will be needed later)
+Pillow>=10.0.0
+pytesseract>=0.3.10
+
+# Database dependencies
+psycopg2-binary>=2.9.0
+python-dotenv>=1.0.0
