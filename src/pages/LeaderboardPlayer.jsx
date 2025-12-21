@@ -26,9 +26,17 @@ function fmtPower(power) {
 function fmtDate(ts) {
     if (!ts) return '-'
     return new Date(ts).toLocaleString('en-GB', {
+        timeZone: 'UTC',
         dateStyle: 'short',
         timeStyle: 'short'
-    })
+    }) + ' UTC'
+}
+
+function formatStoveLevel(stoveLv) {
+    if (!stoveLv || stoveLv < 1) return null
+    if (stoveLv <= 30) return `TC ${stoveLv}`
+    const tgLevel = Math.floor((stoveLv - 30) / 5)
+    return `TG${tgLevel}`
 }
 
 function PowerChart({ history }) {
@@ -108,7 +116,7 @@ function PowerChart({ history }) {
                                 r="4"
                                 fill="var(--accent)"
                             >
-                                <title>{fmtDate(h.scrapedAt)}: {fmtPower(h.power)}</title>
+                                <title>{h.scrapedAt ? fmtDate(h.scrapedAt) : '-'}: {fmtPower(h.power)}</title>
                             </circle>
                         )
                     })}
@@ -186,20 +194,77 @@ export default function LeaderboardPlayer({ adminPass }) {
 
                 <div className="d-flex justify-content-between align-items-start">
                     <div>
-                        <h2 className="mb-2">
-                            {player.rank <= 3 && (
-                                <span className="me-2" style={{ fontSize: '2rem' }}>
-                                    {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'}
-                                </span>
+                        <div className="d-flex align-items-center gap-3 mb-2">
+                            {player.avatarImage ? (
+                                <div style={{ position: 'relative' }}>
+                                    <img 
+                                        src={player.avatarImage} 
+                                        alt="avatar" 
+                                        style={{ 
+                                            width: 64, 
+                                            height: 64, 
+                                            borderRadius: '50%',
+                                            objectFit: 'cover'
+                                        }} 
+                                    />
+                                    {player.stoveLvContent && (
+                                        <span 
+                                            className="badge bg-danger"
+                                            style={{
+                                                position: 'absolute',
+                                                top: -4,
+                                                right: -4,
+                                                fontSize: '0.7rem',
+                                                padding: '3px 6px'
+                                            }}
+                                            title={formatStoveLevel(player.stoveLv) || player.stoveLvContent}
+                                        >
+                                            {player.stoveLvContent}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{ 
+                                    width: 64, 
+                                    height: 64, 
+                                    borderRadius: '50%',
+                                    background: 'var(--panel-2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '2rem'
+                                }}>
+                                    👤
+                                </div>
                             )}
-                            {player.name}
-                        </h2>
-                        <div className="d-flex gap-3 align-items-center">
-                            <span className="badge bg-secondary">Rank #{player.rank}</span>
-                            <span className="text-muted small">
-                                First seen: {fmtDate(player.firstSeen)}
-                            </span>
+                            <div>
+                                <h2 className="mb-0">
+                                    {player.rank <= 3 && (
+                                        <span className="me-2" style={{ fontSize: '2rem' }}>
+                                            {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'}
+                                        </span>
+                                    )}
+                                    {player.name}
+                                </h2>
+                            </div>
                         </div>
+                        <div className="d-flex flex-wrap gap-2 align-items-center mb-1">
+                            {player.allianceName && (
+                                <span className="badge bg-primary">[{player.allianceName}]</span>
+                            )}
+                            <span className="badge bg-secondary">Rank #{player.rank}</span>
+                            {player.kingdom && (
+                                <span className="badge bg-info text-dark">Kingdom #{player.kingdom}</span>
+                            )}
+                        </div>
+                        <div className="text-muted extra-small">
+                            UID: {player.uid || 'Not Scraped'} | First seen: {player.firstSeen ? fmtDate(player.firstSeen) : '-'}
+                        </div>
+                        {player.stoveLv && (
+                            <div className="text-muted extra-small mt-1">
+                                {formatStoveLevel(player.stoveLv)} {player.stoveLvContent && `(${player.stoveLvContent})`}
+                            </div>
+                        )}
                     </div>
                     <div className="text-end">
                         <div className="text-muted small mb-1">Current Power</div>
@@ -212,6 +277,15 @@ export default function LeaderboardPlayer({ adminPass }) {
 
             {/* Stats Cards */}
             <div className="row g-3 mb-4">
+                <div className="col-md-3 col-6">
+                    <div className="border rounded p-3" style={{ background: 'var(--panel-2)' }}>
+                        <div className="text-muted small mb-1">Total Kills</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+                            {player.kills ? player.kills.toLocaleString() : '-'}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="col-md-3 col-6">
                     <div className="border rounded p-3" style={{ background: 'var(--panel-2)' }}>
                         <div className="text-muted small mb-1">24h Change</div>
@@ -278,6 +352,9 @@ export default function LeaderboardPlayer({ adminPass }) {
                         {stats.peakPowerDate && (
                             <div className="text-muted small">{fmtDate(stats.peakPowerDate)}</div>
                         )}
+                        {!stats.peakPowerDate && stats.peakPower > 0 && (
+                            <div className="text-muted small">-</div>
+                        )}
                     </div>
                 </div>
 
@@ -322,7 +399,7 @@ export default function LeaderboardPlayer({ adminPass }) {
 
                                 return (
                                     <tr key={idx}>
-                                        <td className="text-muted small">{fmtDate(h.scrapedAt)}</td>
+                                        <td className="text-muted small">{h.scrapedAt ? fmtDate(h.scrapedAt) : '-'}</td>
                                         <td className="text-end">
                                             <span className="badge bg-success">
                                                 {fmtPower(h.power)}

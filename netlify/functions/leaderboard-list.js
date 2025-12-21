@@ -10,38 +10,53 @@ export async function handler(event) {
         await ensureSchema()
         const sql = getSql()
 
-        // Get all players with their latest power reading
+        // Get all players from unified table with their latest power reading
         const players = await sql`
       SELECT 
-        lp.name,
-        lp.first_seen,
-        lp.last_seen,
+        p.nickname as name,
+        p.id as uid,
+        p.first_seen,
+        p.last_seen,
+        p.kills,
+        p.alliance_name,
+        p.kingdom,
+        p.kid,
+        p.stove_lv,
+        p.stove_lv_content,
+        p.avatar_image,
         (
           SELECT power 
           FROM leaderboard_power_history 
-          WHERE player_name = lp.name 
+          WHERE player_id = p.id
           ORDER BY scraped_at DESC 
           LIMIT 1
         ) as current_power,
         (
           SELECT scraped_at 
           FROM leaderboard_power_history 
-          WHERE player_name = lp.name 
+          WHERE player_id = p.id
           ORDER BY scraped_at DESC 
           LIMIT 1
         ) as power_updated_at
-      FROM leaderboard_players lp
-      WHERE lp.merged_into IS NULL
+      FROM players p
       ORDER BY current_power DESC NULLS LAST
     `
 
         return cors({
             players: players.map(p => ({
                 name: p.name,
-                firstSeen: p.first_seen,
-                lastSeen: p.last_seen,
+                uid: p.uid,
+                firstSeen: p.first_seen ? Number(p.first_seen) : null,
+                lastSeen: p.last_seen ? Number(p.last_seen) : null,
+                kills: p.kills,
+                allianceName: p.alliance_name,
+                kingdom: p.kingdom,
+                kid: p.kid,
+                stoveLv: p.stove_lv,
+                stoveLvContent: p.stove_lv_content,
+                avatarImage: p.avatar_image,
                 currentPower: p.current_power,
-                powerUpdatedAt: p.power_updated_at
+                powerUpdatedAt: p.power_updated_at ? Number(p.power_updated_at) : null
             }))
         })
     } catch (error) {

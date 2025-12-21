@@ -16,11 +16,11 @@ export async function handler(event) {
             return cors({ error: 'Missing player name parameter' }, 400)
         }
 
-        // Get player info
+        // Get player info (from unified table)
         const playerRows = await sql`
-      SELECT name, first_seen, last_seen, merged_into
-      FROM leaderboard_players
-      WHERE name = ${playerName}
+      SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
+      FROM players
+      WHERE nickname = ${playerName}
     `
 
         if (playerRows.length === 0) {
@@ -37,11 +37,11 @@ export async function handler(event) {
             })
         }
 
-        // Get complete power history
+        // Get complete power history (using stable UID)
         const history = await sql`
       SELECT power, scraped_at
       FROM leaderboard_power_history
-      WHERE player_name = ${playerName}
+      WHERE player_id = ${player.uid}
       ORDER BY scraped_at DESC
     `
 
@@ -50,15 +50,14 @@ export async function handler(event) {
         const oldestPower = history.length > 0 ? history[history.length - 1].power : 0
         const totalGain = currentPower - oldestPower
 
-        // Get rank
+        // Get rank (using unified table)
         const rankResult = await sql`
       SELECT COUNT(*) + 1 as rank
-      FROM leaderboard_players lp
-      WHERE lp.merged_into IS NULL
-        AND (
+      FROM players p
+      WHERE (
           SELECT power 
           FROM leaderboard_power_history 
-          WHERE player_name = lp.name 
+          WHERE player_id = p.id 
           ORDER BY scraped_at DESC 
           LIMIT 1
         ) > ${currentPower}
@@ -103,8 +102,16 @@ export async function handler(event) {
         return cors({
             player: {
                 name: player.name,
-                firstSeen: player.first_seen,
-                lastSeen: player.last_seen,
+                uid: player.uid,
+                firstSeen: player.first_seen ? Number(player.first_seen) : null,
+                lastSeen: player.last_seen ? Number(player.last_seen) : null,
+                kills: player.kills,
+                allianceName: player.alliance_name,
+                kingdom: player.kingdom,
+                kid: player.kid,
+                stoveLv: player.stove_lv,
+                stoveLvContent: player.stove_lv_content,
+                avatarImage: player.avatar_image,
                 currentPower,
                 rank
             },
@@ -113,14 +120,14 @@ export async function handler(event) {
                 powerChange24h,
                 powerChange7d,
                 peakPower,
-                peakPowerDate,
+                peakPowerDate: peakPowerDate ? Number(peakPowerDate) : null,
                 avgDailyGrowth,
                 daysTracked: Math.floor(daysTracked),
                 totalReadings: history.length
             },
             history: history.map(h => ({
                 power: h.power,
-                scrapedAt: h.scraped_at
+                scrapedAt: h.scraped_at ? Number(h.scraped_at) : null
             }))
         })
     } catch (error) {

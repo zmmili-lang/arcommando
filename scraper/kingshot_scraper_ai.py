@@ -48,6 +48,13 @@ COORDS = {
     'POWER_X2': 997,
     
     'POWER_Y_OFFSET': -40, # Shift power crop UP by 40px
+
+    # Profile Screen Coordinates (1080x2400)
+    'BACK_BUTTON': (72, 137),
+    'PROFILE_UID_REGION': (450, 1833, 662, 1876),    # (x1, y1, x2, y2)
+    'PROFILE_KILLS_REGION': (480, 1950, 750, 1995),
+    'PROFILE_ALLIANCE_REGION': (550, 2000, 650, 2055),
+    'PROFILE_KINGDOM_REGION': (850, 1833, 1000, 1876), # Estimating near UID
 }
 
 # Initialize EasyOCR Reader (do this once, global)
@@ -148,6 +155,41 @@ def ai_ocr_single_row(screenshot_path, row_num, mode='text'):
     except Exception as e:
         print(f"    ⚠️ AI Error on row {row_num}: {e}")
         return ""
+
+def scrape_profile_screen(device, screenshot_path):
+    """Extract UID, Kills, Alliance, Kingdom from profile screen"""
+    try:
+        img = Image.open(screenshot_path)
+        
+        # Helper to OCR a region
+        def ocr_region(region, allowlist=None):
+            x1, y1, x2, y2 = region
+            crop = img.crop((x1, y1, x2, y2))
+            img_np = np.array(crop)
+            if allowlist:
+                results = READER.readtext(img_np, detail=0, allowlist=allowlist)
+            else:
+                results = READER.readtext(img_np, detail=0)
+            return " ".join(results).strip()
+
+        uid = ocr_region(COORDS['PROFILE_UID_REGION'], allowlist='0123456789')
+        kills_str = ocr_region(COORDS['PROFILE_KILLS_REGION'], allowlist='0123456789,MKB.')
+        alliance = ocr_region(COORDS['PROFILE_ALLIANCE_REGION'])
+        kingdom_str = ocr_region(COORDS['PROFILE_KINGDOM_REGION'], allowlist='0123456789')
+
+        # Clean kills (handle M/K suffixes if any, though usually raw on profile)
+        kills = clean_power_value(kills_str)
+        kingdom = clean_power_value(kingdom_str) or 716 # Fallback to known kingdom
+
+        return {
+            'uid': uid,
+            'kills': kills,
+            'alliance_name': alliance,
+            'kingdom': kingdom
+        }
+    except Exception as e:
+        print(f"    ⚠️ Profile OCR Error: {e}")
+        return None
 
 # ============================================================================
 # DATA CLEANING
@@ -252,11 +294,27 @@ def save_debug_row(img_path, row_num, global_idx, name):
         print(f"Warning: Failed to save debug image: {e}")
 
 def clean_power_value(power_str):
+    """Clean power/kills string and handle M/K/B multipliers"""
+    if not power_str: return None
     try:
-        power_str = ''.join(c for c in power_str if c.isdigit())
-        if not power_str: return None
-        return int(power_str)
-    except:
+        power_str = power_str.upper().strip()
+        
+        # Handle decimal values with multipliers
+        multiplier = 1
+        if 'B' in power_str: multiplier = 1_000_000_000
+        elif 'M' in power_str: multiplier = 1_000_000
+        elif 'K' in power_str: multiplier = 1_000
+        
+        # Extract digits, dots, and commas
+        clean_str = "".join(c for c in power_str if c.isdigit() or c in ('.', ','))
+        clean_str = clean_str.replace(',', '')
+        
+        if not clean_str: return None
+        
+        value = float(clean_str)
+        return int(value * multiplier)
+    except Exception as e:
+        print(f"      ⚠️ Failed to parse numeric value '{power_str}': {e}")
         return None
 
 # ============================================================================
@@ -295,21 +353,57 @@ def save_to_database(players_data):
         for player in players_data:
             name = player['name']
             power = player['power']
+            uid = player.get('uid')
+            kills = player.get('kills', 0)
+            alliance = player.get('alliance_name')
+            kingdom = player.get('kingdom')
             
-            # Upsert player (insert or update last_seen)
-            cursor.execute("""
-                INSERT INTO leaderboard_players (name, first_seen, last_seen)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (name) 
-                DO UPDATE SET last_seen = EXCLUDED.last_seen
-            """, (name, scrape_time, scrape_time))
-            
-            # Insert power reading (ignore if duplicate timestamp)
-            cursor.execute("""
-                INSERT INTO leaderboard_power_history (player_name, power, scraped_at)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (player_name, scraped_at) DO NOTHING
-            """, (name, power, scrape_time))
+            # Step 1: Handle UID-based logic
+            if uid:
+                # Check if player exists and is verified (Search in unified 'players' table)
+                cursor.execute("SELECT nickname, is_verified FROM players WHERE id = %s", (uid,))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    db_name, verified = existing
+                    # If verified, keep the DB name (nickname), don't use OCR name
+                    final_name = db_name if verified else name
+                    
+                    cursor.execute("""
+                        UPDATE players SET 
+                            nickname = %s,
+                            last_seen = %s,
+                            kills = %s,
+                            alliance_name = %s,
+                            kingdom = %s
+                        WHERE id = %s
+                    """, (final_name, scrape_time, kills, alliance, kingdom, uid))
+                else:
+                    # New player with UID (New entrance to unified table)
+                    cursor.execute("""
+                        INSERT INTO players (id, nickname, first_seen, last_seen, kills, alliance_name, kingdom)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (uid, name, scrape_time, scrape_time, kills, alliance, kingdom))
+                
+                # Insert power reading (Uses stable ID now)
+                cursor.execute("""
+                    INSERT INTO leaderboard_power_history (player_id, power, scraped_at)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (player_id, scraped_at) DO NOTHING
+                """, (uid, power, scrape_time))
+            else:
+                # Fallback: if we only have the name, we can't save to the main 'players' table (which needs ID)
+                # We could keep writing to temporary 'leaderboard_players' if it still exists
+                try:
+                    cursor.execute("""
+                        INSERT INTO leaderboard_players (name, first_seen, last_seen)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (name) 
+                        DO UPDATE SET last_seen = EXCLUDED.last_seen
+                    """, (name, scrape_time, scrape_time))
+                except:
+                    # Table might be gone after full migration
+                    pass
             
             saved_count += 1
         
@@ -379,6 +473,35 @@ def scrape_leaderboard_ai(device, max_scrolls=10):
             # save_debug_row(img_path, row, len(all_players), name)
             
             print(f"  Row {row+1}: {name:30s} -> {power:,}")
+
+            # NEW: Deep Profile Scrape
+            try:
+                # Click the row
+                row_y = COORDS['FIRST_ROW_Y'] + (row * COORDS['ROW_HEIGHT']) + (COORDS['ROW_HEIGHT'] // 2)
+                device.shell(f"input tap 540 {row_y}")
+                time.sleep(2.0) # Wait for profile screen
+
+                # Capture profile screen
+                profile_filename = f"profile_{scroll_num}_{row}.png"
+                profile_path = capture_and_pull_screen(device, profile_filename)
+                
+                if profile_path:
+                    profile_data = scrape_profile_screen(device, profile_path)
+                    if profile_data:
+                        all_players[-1].update(profile_data)
+                        print(f"    ↳ ID: {profile_data['uid']} | Kills: {profile_data.get('kills', 0):,} | Alliance: {profile_data.get('alliance_name')}")
+                    
+                    # Cleanup
+                    try: os.remove(profile_path)
+                    except: pass
+                
+                # Click back
+                bx, by = COORDS['BACK_BUTTON']
+                device.shell(f"input tap {bx} {by}")
+                time.sleep(1.5) # Wait for list screen
+                
+            except Exception as e:
+                print(f"    ⚠️ Deep scrape error: {e}")
             
         print(f"\n✅ Extracted {valid_rows} valid rows")
         

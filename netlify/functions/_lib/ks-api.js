@@ -55,7 +55,13 @@ export async function fetchPlayerProfile(fid) {
     throw new Error(`Login failed: ${data.msg || 'Unknown'}`)
   }
   const d = data.data || {}
-  return { nickname: d.nickname, avatar_image: d.avatar_image }
+  return { 
+    nickname: d.nickname, 
+    avatar_image: d.avatar_image,
+    kid: d.kid,
+    stove_lv: d.stove_lv,
+    stove_lv_content: d.stove_lv_content
+  }
 }
 
 const RESULT_MESSAGES = {

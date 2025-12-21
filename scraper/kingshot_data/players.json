@@ -1,422 +1,658 @@
 [
   {
     "name": "[AVN]Danko",
-    "power": 575052737
+    "power": 212173810,
+    "uid": "106373155",
+    "kills": 212200000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
     "name": "[ARC]Urek Mazino",
-    "power": 430692460
+    "power": 44748181,
+    "uid": "107913462",
+    "kills": 44700000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "[AVN]Pasta Di Napoli",
+    "power": 41981738,
+    "uid": "106111378",
+    "kills": 41900000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
     "name": "[ARC]Enzo",
-    "power": 369695915
-  },
-  {
-    "name": "[HOE]Big Mistake",
-    "power": 225841679
-  },
-  {
-    "name": "[ARC]Hay",
-    "power": 225086462
+    "power": 38690750,
+    "uid": "105718120",
+    "kills": 38600000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
     "name": "[AVN]Yelkao",
-    "power": 180843679
-  },
-  {
-    "name": "[AVN]I AM GROOT",
-    "power": 167296809
-  },
-  {
-    "name": "[ARC]Whiskey Bent",
-    "power": 161393304
-  },
-  {
-    "name": "[ExU]LordJFK99",
-    "power": 159844351
-  },
-  {
-    "name": "[716]Spicy2",
-    "power": 158172022
-  },
-  {
-    "name": "[ExU]Captain Scorpion",
-    "power": 154677333
-  },
-  {
-    "name": "[ARC]goose",
-    "power": 154120673
-  },
-  {
-    "name": "[ARC]Atomu",
-    "power": 152827214
-  },
-  {
-    "name": "[ExU]Mr244",
-    "power": 150985318
-  },
-  {
-    "name": "[AVN]CANER",
-    "power": 148789025
-  },
-  {
-    "name": "[AVN]Blade6o",
-    "power": 14653166113
-  },
-  {
-    "name": "[ExU]Top",
-    "power": 143152086
-  },
-  {
-    "name": "[HOE]HoHo Rays",
-    "power": 141344015
-  },
-  {
-    "name": "[ARC]bugbug",
-    "power": 133616714
-  },
-  {
-    "name": "[ARC]Cezar",
-    "power": 129826254
-  },
-  {
-    "name": "TAVNJAnakin",
-    "power": 6258101286
-  },
-  {
-    "name": "[AVN]e3 0ng? MRAYO 0n23",
-    "power": 126199196
-  },
-  {
-    "name": "[ExU]F2H",
-    "power": 122276836
-  },
-  {
-    "name": "[AVN]Skyland",
-    "power": 122013228
-  },
-  {
-    "name": "[AVN]MikiGs",
-    "power": 121425519
+    "power": 38354606,
+    "uid": "108617947",
+    "kills": 38900000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
     "name": "[AVN]SANCAR",
-    "power": 119653129
+    "power": 35293561,
+    "uid": "105488856",
+    "kills": 35200000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]Echo",
-    "power": 1199106295
+    "name": "[AVN]CANER",
+    "power": 31092995,
+    "uid": "106717467",
+    "kills": 31000000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]skibidiConsulate",
-    "power": 117633732
+    "name": "[ARC]Hay",
+    "power": 25727105,
+    "uid": "105980418",
+    "kills": 25700000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
-    "name": "[HOE]Aarones]",
-    "power": 116726251
+    "name": "[ExU]Mr244",
+    "power": 23176994,
+    "uid": "108896694",
+    "kills": 23100000,
+    "alliance_name": "ExU",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]AyChrono",
-    "power": 116607167
-  },
-  {
-    "name": "[ExU]Shaky Ground",
-    "power": 115384509
-  },
-  {
-    "name": "[ARC]Assassin",
-    "power": 11520830680
-  },
-  {
-    "name": "[ARC]Robot",
-    "power": 109671229
-  },
-  {
-    "name": "[ARC]Mili",
-    "power": 109050475
-  },
-  {
-    "name": "[ExU]Ralston",
-    "power": 108907367
-  },
-  {
-    "name": "[ARC]NoiseBoy",
-    "power": 108477101
-  },
-  {
-    "name": "[AVN]Nini36170",
-    "power": 294881107
-  },
-  {
-    "name": "[ExU]JoJo9144",
-    "power": 105907884
-  },
-  {
-    "name": "[ARC]Vosheld",
-    "power": 105141283
-  },
-  {
-    "name": "[HOE]JOEY",
-    "power": 104902074
+    "name": "[ARC]Atomu",
+    "power": 20880846,
+    "uid": "10684888",
+    "kills": 20800000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
     "name": "[AVN]Cervus",
-    "power": 104328352
+    "power": 19913878,
+    "uid": "106307653",
+    "kills": 19900000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]Galdarian",
-    "power": 104114523
+    "name": "[ExU]Ralston",
+    "power": 19470748,
+    "uid": "107684468",
+    "kills": 19400000,
+    "alliance_name": "ExU",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]IKHYAmpun",
-    "power": 102847151
+    "name": "[AVN]MikiGS",
+    "power": 18756161,
+    "uid": "107635349",
+    "kills": 18700000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ARC]Crazy Wizard",
-    "power": 102600761
+    "name": "[AVN]Devils eye",
+    "power": 18735555,
+    "uid": "108880131",
+    "kills": 18700000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU] &  _ y107",
-    "power": 102443115
+    "name": "[AVN]I AM GROOT",
+    "power": 18490191,
+    "uid": "107225543",
+    "kills": 18400000,
+    "alliance_name": "AVN",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]taku",
+    "power": 18433312,
+    "uid": "105488726",
+    "kills": 18400000,
+    "alliance_name": "ExU",
+    "kingdom": 8
   },
   {
     "name": "[ARC]Dissolve",
-    "power": 101587281
+    "power": 17518636,
+    "uid": "108012211",
+    "kills": 17500000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]dddDiesel187",
-    "power": 3960931013
+    "name": "[AVN]Skyland",
+    "power": 17484574,
+    "uid": "107159832",
+    "kills": 17400000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]Hyperliquid",
-    "power": 101335196
+    "name": "[ExU]louis Beton",
+    "power": 16116545,
+    "uid": "108306730",
+    "kills": 16000000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]shaku Groun",
+    "power": 16054090,
+    "uid": "106127491",
+    "kills": 15800000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "0DC",
+    "power": 15854730,
+    "uid": "107717157",
+    "kills": 15400000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "CiLi",
+    "power": 14262122,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "Iercp?s",
+    "power": 14258273,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "lrcjorDTuTconstietc",
+    "power": 13772649,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[eeg]t&r",
+    "power": 12186173,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "Toppicy-",
+    "power": 12183727,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "rynorccncrc",
+    "power": 11815283,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "J[Arcazy ulata",
+    "power": 11640124,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[ARC]oiseduy",
+    "power": 11600428,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "Umora",
+    "power": 11466922,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[ARC]Assassin",
+    "power": 10048184,
+    "uid": "106586718",
+    "kills": 10000000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
     "name": "[ExU]Jess1124",
-    "power": 101330086
+    "power": 9787990,
+    "uid": "106406156",
+    "kills": 9700000,
+    "alliance_name": "ExU",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]muhanad",
-    "power": 2524891012
+    "name": "[ARC]Whiskey Bent",
+    "power": 9717778,
+    "uid": "106062397",
+    "kills": 9700000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
     "name": "[HOE]Nils",
-    "power": 100742719
+    "power": 9536270,
+    "uid": "107356596",
+    "kills": 9500000,
+    "alliance_name": "HOE",
+    "kingdom": 8
   },
   {
-    "name": "[AVN]Gwendoline",
-    "power": 100715850
+    "name": "[AVN]MEMEMASTERZ",
+    "power": 9457939,
+    "uid": "107602537",
+    "kills": 9400000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]Supdeath",
-    "power": 100534287
-  },
-  {
-    "name": "[AVN]Devils_ eye",
-    "power": 99259597
-  },
-  {
-    "name": "[ExU]Black Angel",
-    "power": 98924898
-  },
-  {
-    "name": "[ARC]BoxyBrown",
-    "power": 98310522
-  },
-  {
-    "name": "[AVN]NeznaBoh",
-    "power": 97567117
-  },
-  {
-    "name": "[AVN]ceBlaze",
-    "power": 97286784
-  },
-  {
-    "name": "[ExU]Nyado6",
-    "power": 96956695
-  },
-  {
-    "name": "[AVN]Gokcenefe",
-    "power": 96736799
-  },
-  {
-    "name": "[AVN]Gimli",
-    "power": 96279538
-  },
-  {
-    "name": "[HOE]Falls",
-    "power": 96118980
-  },
-  {
-    "name": "[ExU]I Leila |",
-    "power": 96046982
-  },
-  {
-    "name": "[ARC]Majyk",
-    "power": 95851379
-  },
-  {
-    "name": "[HOE]Ely",
-    "power": 95818496
-  },
-  {
-    "name": "[ARC]Sloth",
-    "power": 95816583
-  },
-  {
-    "name": "[ARC]Sigita",
-    "power": 95465433
-  },
-  {
-    "name": "[AVN]kanourek",
-    "power": 94983185
-  },
-  {
-    "name": "TAVNJkanourek",
-    "power": 94983185
-  },
-  {
-    "name": "[AVN]WooHoo",
-    "power": 94718708
-  },
-  {
-    "name": "[VLT]Rogue",
-    "power": 94170215
-  },
-  {
-    "name": "[ExU]GumGumBazooka",
-    "power": 93974660
-  },
-  {
-    "name": "[HOE]Red",
-    "power": 92332054
-  },
-  {
-    "name": "[ExU]Land Shark",
-    "power": 92224780
-  },
-  {
-    "name": "[AVN]AndoCommando850",
-    "power": 76104891
-  },
-  {
-    "name": "[HOE]Alec",
-    "power": 91556277
-  },
-  {
-    "name": "[AVN]Ser Arishem",
-    "power": 42734591
-  },
-  {
-    "name": "[HOE]Alfredo940",
-    "power": 91098003
-  },
-  {
-    "name": "[ExU]ABSOLUTE",
-    "power": 90679515
-  },
-  {
-    "name": "[ExU]sapiens 10",
-    "power": 90596859
-  },
-  {
-    "name": "[AVN]Suffocation",
-    "power": 90568703
-  },
-  {
-    "name": "[ExU]jingleLizard",
-    "power": 90446261
-  },
-  {
-    "name": "[AVN]Spicy",
-    "power": 90273022
-  },
-  {
-    "name": "[HOE]aelin",
-    "power": 90130190
-  },
-  {
-    "name": "[ExU]psy",
-    "power": 89815908
-  },
-  {
-    "name": "[roj]y",
-    "power": 5013700
-  },
-  {
-    "name": "InocjJeo",
-    "power": 89695347
-  },
-  {
-    "name": "[ANT]omris",
-    "power": 89462477
-  },
-  {
-    "name": "JAVNjbORU",
-    "power": 89099881
-  },
-  {
-    "name": "[ExU]GEAR",
-    "power": 88136792
-  },
-  {
-    "name": "[ExU]Lea",
-    "power": 88096160
-  },
-  {
-    "name": "[ARC]Princess Lea",
-    "power": 87773870
-  },
-  {
-    "name": "[ARC]ady Viman",
-    "power": 87700122
-  },
-  {
-    "name": "[ARC]Mathjes",
-    "power": 87685652
-  },
-  {
-    "name": "[ARC]Lady Viman",
-    "power": 87700122
-  },
-  {
-    "name": "[ExU]Lord StrongOne",
-    "power": 87589217
-  },
-  {
-    "name": "[AVN]Zargothrax",
-    "power": 87074639
-  },
-  {
-    "name": "[ExU]Sayb",
-    "power": 87058514
+    "name": "[ARC]Slug",
+    "power": 9342095,
+    "uid": "108519833",
+    "kills": 9300000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
     "name": "[ExU]Mong1183",
-    "power": 86891884
-  },
-  {
-    "name": "[HOE]Manik",
-    "power": 8651175
-  },
-  {
-    "name": "[AVN]Zargothrax",
-    "power": 74639870
+    "power": 9240085,
+    "uid": "106684841",
+    "kills": 9200000,
+    "alliance_name": "ExU",
+    "kingdom": 8
   },
   {
     "name": "[HOE]mallis",
-    "power": 86702064
+    "power": 9210727,
+    "uid": "106816126",
+    "kills": 9200000,
+    "alliance_name": "HOE",
+    "kingdom": 8
   },
   {
-    "name": "[HOE]Manik",
-    "power": 86511175
+    "name": "[ARC]essel",
+    "power": 9105696,
+    "uid": "105669002",
+    "kills": 9100000,
+    "alliance_name": "ARC",
+    "kingdom": 8
   },
   {
-    "name": "[ExU]Lord Byron XX",
-    "power": 86271924
+    "name": "nnleDO",
+    "power": 3003,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "Oloy 'Oricig?",
+    "power": 8824448,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "rninanouncr",
+    "power": 8570676,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "erorm Ampun",
+    "power": 8522920,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[CxU]uuabiesenio/",
+    "power": 8381516,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "ARCIRODOL",
+    "power": 8278220,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "Darreios",
+    "power": 8209075,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "IARCMMM",
+    "power": 8049163,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "AVNJKRAT0",
+    "power": 7921161,
+    "uid": "106177127",
+    "kills": 7900000,
+    "alliance_name": "AVN",
+    "kingdom": 8
+  },
+  {
+    "name": "Grandpa",
+    "power": 7261947,
+    "uid": "107422192",
+    "kills": 7200000,
+    "alliance_name": "None",
+    "kingdom": 8
+  },
+  {
+    "name": "PAVNJSpicy",
+    "power": 7154638,
+    "uid": "108473258",
+    "kills": 7100000,
+    "alliance_name": "AVN",
+    "kingdom": 8
+  },
+  {
+    "name": "[ARC]Nathh 0",
+    "power": 6818098,
+    "uid": "107782670",
+    "kills": 6800000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "[HOE]Ely",
+    "power": 6730039,
+    "uid": "106586607",
+    "kills": 6700000,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[HOE]kazehaya",
+    "power": 6623330,
+    "uid": "106455317",
+    "kills": 6600000,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]gonzo",
+    "power": 6277436,
+    "uid": "106373706",
+    "kills": 6200000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "PerrythePlatypus",
+    "power": 6153968,
+    "uid": "105325114",
+    "kills": 6100000,
+    "alliance_name": "None",
+    "kingdom": 8
+  },
+  {
+    "name": "[HOE]Aarones]",
+    "power": 6033490,
+    "uid": "107487775",
+    "kills": 6000000,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]AyChrono",
+    "power": 5961346,
+    "uid": "105702015",
+    "kills": 5900000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]Black Angel",
+    "power": 5611584,
+    "uid": "107176588",
+    "kills": 5500000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "[AVN]Woodenheart",
+    "power": 5579137,
+    "uid": "108273932",
+    "kills": 5500000,
+    "alliance_name": "AVN",
+    "kingdom": 8
+  },
+  {
+    "name": "[AVN]Luckey",
+    "power": 5569803,
+    "uid": "106242261",
+    "kills": 5500000,
+    "alliance_name": "AVN",
+    "kingdom": 8
+  },
+  {
+    "name": "[ARC]Kisu",
+    "power": 5513503,
+    "uid": "105882206",
+    "kills": 5300000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "[ARC]Maivk",
+    "power": 5328032,
+    "uid": "107094585",
+    "kills": 5300000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "AFK ELARA",
+    "power": 5322358,
+    "uid": "105226979",
+    "kills": 5200000,
+    "alliance_name": "None",
+    "kingdom": 8
+  },
+  {
+    "name": "[ARC]Sloth",
+    "power": 5225911,
+    "uid": "107880748",
+    "kills": 5200000,
+    "alliance_name": "ARC",
+    "kingdom": 8
+  },
+  {
+    "name": "enn",
+    "power": 7683,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "e9 -",
+    "power": 4860720,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "InCd TC",
+    "power": 46406716,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "IF! Juton 44i &n",
+    "power": 46186576,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "UecD",
+    "power": 4623017,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "ArCnvoinie",
+    "power": 4599446,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "InofinyStainngi",
+    "power": 4543638,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[Noe]ragnarok)i [",
+    "power": 4463249,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[Noe]coay",
+    "power": 4435596,
+    "uid": "",
+    "kills": null,
+    "alliance_name": "",
+    "kingdom": 716
+  },
+  {
+    "name": "[HOE]Ragnarok577",
+    "power": 4463249,
+    "uid": "105210430",
+    "kills": 4400000,
+    "alliance_name": "HOE",
+    "kingdom": 8
   },
   {
     "name": "[HOE]Cody",
-    "power": 86224896
+    "power": 4435596,
+    "uid": "105668675",
+    "kills": 4400000,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[VLT]Magic Mayo",
+    "power": 4420140,
+    "uid": "108437867",
+    "kills": 4400000,
+    "alliance_name": "VLT",
+    "kingdom": 8
+  },
+  {
+    "name": "[HOE]JNGLENUT JNGLENUT",
+    "power": 4368819,
+    "uid": "109011549",
+    "kills": 4300000,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[VLT]Rogue",
+    "power": 4319583,
+    "uid": "106144351",
+    "kills": 4300000,
+    "alliance_name": "VLT",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]muhanad",
+    "power": 4104629,
+    "uid": "108077271",
+    "kills": 4099999,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "[HOE]Falls",
+    "power": 4100396,
+    "uid": "107913302",
+    "kills": 4099999,
+    "alliance_name": "HOE",
+    "kingdom": 8
+  },
+  {
+    "name": "[ExU]Galdarian",
+    "power": 4076556,
+    "uid": "105980342",
+    "kills": 4000000,
+    "alliance_name": "ExU",
+    "kingdom": 8
+  },
+  {
+    "name": "[AVN]Nini36170",
+    "power": 4002427,
+    "uid": "105226527",
+    "kills": 4000000,
+    "alliance_name": "AVN",
+    "kingdom": 8
   }
 ]

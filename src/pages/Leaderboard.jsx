@@ -38,6 +38,22 @@ function fmtTimeAgo(ts) {
     return 'just now'
 }
 
+function fmtDateUTC(ts) {
+    if (!ts) return '-'
+    return new Date(ts).toLocaleString('en-GB', {
+        timeZone: 'UTC',
+        dateStyle: 'short',
+        timeStyle: 'short'
+    }) + ' UTC'
+}
+
+function formatStoveLevel(stoveLv) {
+    if (!stoveLv || stoveLv < 1) return null
+    if (stoveLv <= 30) return `TC ${stoveLv}`
+    const tgLevel = Math.floor((stoveLv - 30) / 5)
+    return `TG${tgLevel}`
+}
+
 export default function Leaderboard({ adminPass }) {
     const navigate = useNavigate()
     const [players, setPlayers] = useState([])
@@ -85,6 +101,12 @@ export default function Leaderboard({ adminPass }) {
                 break
             case 'name':
                 sorted.sort((a, b) => a.name.localeCompare(b.name))
+                break
+            case 'alliance':
+                sorted.sort((a, b) => (a.allianceName || '').localeCompare(b.allianceName || ''))
+                break
+            case 'kills':
+                sorted.sort((a, b) => (b.kills || 0) - (a.kills || 0))
                 break
             case 'power':
                 sorted.sort((a, b) => (b.currentPower || 0) - (a.currentPower || 0))
@@ -155,6 +177,12 @@ export default function Leaderboard({ adminPass }) {
                                 <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
                                     Player {sortBy === 'name' && '▼'}
                                 </th>
+                                <th className="d-none d-lg-table-cell" style={{ cursor: 'pointer' }} onClick={() => handleSort('alliance')}>
+                                    Alliance {sortBy === 'alliance' && '▼'}
+                                </th>
+                                <th className="text-end d-none d-lg-table-cell" style={{ cursor: 'pointer' }} onClick={() => handleSort('kills')}>
+                                    Kills {sortBy === 'kills' && '▼'}
+                                </th>
                                 <th className="text-end" style={{ cursor: 'pointer' }} onClick={() => handleSort('power')}>
                                     Power {sortBy === 'power' && '▼'}
                                 </th>
@@ -181,8 +209,63 @@ export default function Leaderboard({ adminPass }) {
                                             <span className="text-muted">#{idx + 1}</span>
                                         )}
                                     </td>
-                                    <td className="fw-medium">
-                                        {player.name}
+                                    <td>
+                                        <div className="d-flex align-items-center gap-2">
+                                            {player.avatarImage ? (
+                                                <div style={{ position: 'relative' }}>
+                                                    <img 
+                                                        src={player.avatarImage} 
+                                                        alt="avatar" 
+                                                        style={{ 
+                                                            width: 40, 
+                                                            height: 40, 
+                                                            borderRadius: '50%',
+                                                            objectFit: 'cover'
+                                                        }} 
+                                                    />
+                                                    {player.stoveLvContent && (
+                                                        <span 
+                                                            className="badge bg-danger"
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: -4,
+                                                                right: -4,
+                                                                fontSize: '0.65rem',
+                                                                padding: '2px 4px'
+                                                            }}
+                                                            title={formatStoveLevel(player.stoveLv) || player.stoveLvContent}
+                                                        >
+                                                            {player.stoveLvContent}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div style={{ 
+                                                    width: 40, 
+                                                    height: 40, 
+                                                    borderRadius: '50%',
+                                                    background: 'var(--panel-2)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '1.2rem'
+                                                }}>
+                                                    👤
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="fw-medium">{player.name}</div>
+                                                <div className="text-muted extra-small d-lg-none">
+                                                    {player.allianceName || 'No Alliance'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="text-muted d-none d-lg-table-cell">
+                                        {player.allianceName || '-'}
+                                    </td>
+                                    <td className="text-end text-muted d-none d-lg-table-cell">
+                                        {player.kills ? player.kills.toLocaleString() : '-'}
                                     </td>
                                     <td className="text-end">
                                         <span className="badge bg-success" style={{ fontSize: '0.9rem' }}>
@@ -190,7 +273,7 @@ export default function Leaderboard({ adminPass }) {
                                         </span>
                                     </td>
                                     <td className="text-end text-muted small d-none d-md-table-cell">
-                                        {fmtTimeAgo(player.powerUpdatedAt)}
+                                        {player.powerUpdatedAt ? fmtTimeAgo(player.powerUpdatedAt) : '-'}
                                     </td>
                                     <td className="text-end">
                                         <i className="bi bi-chevron-right text-muted"></i>
