@@ -12,13 +12,21 @@ export const handler = async (event) => {
     const { players = 50, fast = false, noApi = false, debugImages = false, autoYes = true } = body
 
     try {
+        const fs = await import('fs')
         const scraperDir = path.resolve(process.cwd(), 'scraper')
         const scraperPath = path.resolve(scraperDir, 'auto_scraper_tesseract.py')
         const logPath = path.resolve(scraperDir, 'scrape_log.txt')
 
-        // We'll use a wrapper or shell redirection to pipe output to log file
-        // Or handle it in JS if we don't detach, but detach is better for long tasks
-        const fs = await import('fs')
+        // Pre-flight check: ensure scraper directory and script exist
+        // Netlify production won't have the "scraper/" folder bundled usually, 
+        // and certainly won't have ADB/Python set up for physical USB.
+        if (!fs.existsSync(scraperDir) || !fs.existsSync(scraperPath)) {
+            return cors({
+                error: 'Local Scraper Not Found',
+                message: 'The physical device scraper can only be run on a local machine with ADB and your phone connected. It is not supported on cloud/production servers.'
+            }, 400)
+        }
+
         const out = fs.openSync(logPath, 'a')
         const err = fs.openSync(logPath, 'a')
 

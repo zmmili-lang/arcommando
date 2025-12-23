@@ -11,7 +11,13 @@ export default function Scraper() {
     const [autoYes, setAutoYes] = useState(true)
     const [loading, setLoading] = useState(false)
 
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
     async function handleStart() {
+        if (!isLocal) {
+            toast.error('The scraper requires a local physical connection to your phone.')
+            return
+        }
         if (!window.confirm('Start the scraper with these settings?')) return
 
         setLoading(true)
@@ -46,6 +52,19 @@ export default function Scraper() {
                     <h5 className="mb-0">Configuration</h5>
                 </div>
                 <div className="card-body">
+                    {!isLocal && (
+                        <div className="alert alert-warning mb-4">
+                            <h6 className="alert-heading d-flex align-items-center gap-2">
+                                <i className="bi bi-exclamation-triangle-fill"></i>
+                                Local Connection Required
+                            </h6>
+                            <p className="mb-0 small">
+                                This scraper uses ADB and Tesseract to read data from a phone connected via USB.
+                                Since you are on the live site, it cannot reach your local device.
+                                To use this, run the app locally using <code>npm run netlify</code>.
+                            </p>
+                        </div>
+                    )}
                     <p className="text-muted small mb-4">
                         Tesseract-based OCR scraper. Runs locally on the server/device.
                     </p>
