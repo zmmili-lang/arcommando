@@ -57,8 +57,8 @@ NAVIGATION_STEPS = [
 
 # Leaderboard Coordinates (from kingshot_scraper_v2.py)
 COORDS = {
-    'SCROLL_START': (540, 1800),
-    'SCROLL_END': (540, 656),    # Final Micro-Tune: 656 (was 658) to fix +2.5px residual undershoot
+    'SCROLL_START': (540, 1930), # Shifted down to accommodate larger 8-row swipe
+    'SCROLL_END': (540, 320),    # Target 8-row scroll: 1610px total distance
     'FIRST_ROW_Y': 323,         # Shifted UP 81px (from 404) per user manual measurement
     'ROW_HEIGHT': 201.25,      # Refined height (1610/8) for sub-pixel lock
     'NUM_VISIBLE_ROWS': 8,
@@ -203,9 +203,9 @@ def calculate_scroll_shift(img1_path, img2_path):
         min_diff = float('inf')
         best_offset = 0
         
-        # Search range: Constrained to Expected 1207 +/- 25px
-        # This prevents locking onto false positive matches (noise/outliers)
-        search_range = range(1180, 1235)
+        # Search range: Constrained to Expected 1610 +/- 25px
+        # Matches new 8-row scroll distance
+        search_range = range(1585, 1635)
         
         for offset in search_range:
             if offset >= total_len: break
@@ -234,27 +234,39 @@ def calculate_scroll_shift(img1_path, img2_path):
 # TESSERACT OCR FUNCTIONS
 # ============================================================================
 
-def preprocess_image(img, mode='text'):
-    """Apply preprocessing to improve OCR accuracy"""
+def preprocess_image(img, mode='text', threshold=None):
+    """Apply advanced preprocessing to improve OCR accuracy. 4x Resize + Image Normalization."""
+    # 1. High-resolution scaling (4x) for sub-pixel digit clarity
     width, height = img.size
-    img = img.resize((width * 3, height * 3), Image.LANCZOS)
+    img = img.resize((width * 4, height * 4), Image.LANCZOS)
     img = img.convert('L')
     
-    from PIL import ImageOps
-    
-    if mode == 'text':
-        enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.2)
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(2.5)
-    
+    # 2. Base contrast / Sharpness
+    img = ImageEnhance.Contrast(img).enhance(2.0)
     img = img.filter(ImageFilter.SHARPEN)
-    img = img.filter(ImageFilter.SHARPEN)
-    img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+    img = img.filter(ImageFilter.UnsharpMask(radius=3, percent=200, threshold=3))
 
     if mode == 'numeric':
-        # Threshold: text is white (~200+), background is dark (~50)
-        img = img.point(lambda x: 0 if x < 140 else 255)
+        # 3. Adaptive Inversion (Normalization)
+        # Tesseract performs best with Black text on White background.
+        # Ranks 1-3 often have White text on Dark/Colored backgrounds.
+        # Ranks 4+ have Dark text on Light backgrounds.
+        # Heuristic: Check median pixel. If it's dark (<128), text is likely light -> Invert.
+        import numpy as np
+        data = np.array(img)
+        median_v = np.median(data)
+        
+        # If background is dark (med < 128), invert so text is black on white
+        if median_v < 120:
+            from PIL import ImageOps
+            img = ImageOps.invert(img)
+            # Re-read median after inversion to settle threshold
+            data = np.array(img)
+            median_v = np.median(data)
+        
+        # 4. Final Binarization
+        t_val = threshold if threshold is not None else 140
+        img = img.point(lambda x: 0 if x < t_val else 255)
     
     return img
 
@@ -289,7 +301,7 @@ def ocr_region(img, region, allowlist=None, debug_name=None, mode='text'):
         return ""
 
 def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
-    """Extract power value from a leaderboard row"""
+    """Extract power value using an Advanced Voting system with Adaptive Normalization"""
     try:
         img = Image.open(screenshot_path)
         y1 = COORDS['FIRST_ROW_Y'] + (row_num * COORDS['ROW_HEIGHT']) + COORDS['POWER_Y_OFFSET'] + y_offset
@@ -297,23 +309,54 @@ def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
         x1, x2 = COORDS['POWER_X1'], COORDS['POWER_X2']
         
         cropped = img.crop((x1, y1, x2, y2))
-        processed = preprocess_image(cropped, mode='numeric')
         
-        # Save debug image
-        if SAVE_DEBUG_CROPS and player_idx is not None:
-            debug_path = os.path.join(DEBUG_DIR, f"player_{player_idx:03d}_row_{row_num+1}_power.png")
-            processed.save(debug_path)
+        # VOTING SYSTEM: Try diverse thresholding profiles
+        # Trials span from very sensitive to very strict
+        thresholds = [100, 130, 160, 190]
+        results = []
         
         config = r'--psm 7 --oem 1 -c tessedit_char_whitelist=0123456789,'
         if os.path.exists(TESSERACT_PATH):
             pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
-        
-        text = pytesseract.image_to_string(processed, config=config).strip()
-        text = text.replace(' ', '').replace(',', '')
-        text = text.replace('O', '0').replace('o', '0')
+
+        for i, t in enumerate(thresholds):
+            processed = preprocess_image(cropped, mode='numeric', threshold=t)
+            text = pytesseract.image_to_string(processed, config=config).strip()
+            text = text.replace(' ', '').replace(',', '').replace('O', '0').replace('o', '0')
+            cleaned = ''.join(c for c in text if c.isdigit())
+            
+            # Save debug image only for the "Balanced" (130) trial
+            if SAVE_DEBUG_CROPS and player_idx is not None and t == 130:
+                debug_path = os.path.join(DEBUG_DIR, f"player_{player_idx:03d}_row_{row_num+1}_power.png")
+                processed.save(debug_path)
+                
+            if cleaned:
+                results.append(cleaned)
         
         img.close()
-        return text
+        
+        if not results:
+            return ""
+            
+        # Filter results that are obviously too short (e.g. noise)
+        # High power is usually 8-9 digits.
+        valid_results = [r for r in results if len(r) >= 6]
+        if not valid_results:
+            valid_results = results # Fallback
+            
+        # VOTING: Pick the result that appears most frequently (consensus)
+        from collections import Counter
+        counts = Counter(valid_results)
+        most_common_val, count = counts.most_common(1)[0]
+        
+        # QUALITY HIERARCHY:
+        # 1. If we have a consensus (2+ trials agree), use it.
+        # 2. If all trials differ, pick the LONGEST result (most likely captured all digits).
+        if count >= 2:
+            return most_common_val
+        
+        return max(valid_results, key=len)
+
     except Exception as e:
         print(f"      ⚠️ Power OCR error: {e}")
         return ""
@@ -383,8 +426,22 @@ def md5(text):
     """Calculate MD5 hash"""
     return hashlib.md5(text.encode()).hexdigest()
 
+# Global API lock to stay under 30 req/min (1 call per 2s)
+API_LOCK = threading.Lock()
+LAST_API_CALL_TIME = 0
+
 def fetch_player_profile(fid):
-    """Fetch player profile from API (nickname, avatar)"""
+    """Fetch player profile from API (nickname, avatar) with rate limiting"""
+    global LAST_API_CALL_TIME
+    
+    with API_LOCK:
+        # Enforce 2.1s gap between calls
+        now = time.time()
+        elapsed = now - LAST_API_CALL_TIME
+        if elapsed < 2.1:
+            time.sleep(2.1 - elapsed)
+        LAST_API_CALL_TIME = time.time()
+    
     try:
         import time as time_module
         payload = {
@@ -671,9 +728,9 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
     prev_screenshot = None
     
     # Calculate Expected Scroll (Target)
-    # We WANT to scroll exactly 6 rows. The physical scroll command might differ to handle inertia, 
-    # but the drift calculation must compare against the logical target (6 rows).
-    EXPECTED_SCROLL_PX = COORDS['ROW_HEIGHT'] * 6
+    # We WANT to scroll exactly 8 rows to eliminate any duplication.
+    # NUM_VISIBLE_ROWS=8, so scrolling 8 rows moves us perfectly to the next batch.
+    EXPECTED_SCROLL_PX = COORDS['ROW_HEIGHT'] * 8
     
 
     # Initialize stats
@@ -729,6 +786,7 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                 prev_screenshot = screenshot_path
 
             # Process each visible row
+            new_this_screen = 0
             for row in range(COORDS['NUM_VISIBLE_ROWS']):
                 # Stop if we reached max players
                 if player_count >= max_players:
@@ -744,9 +802,22 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                 elif result == False: # Reached max players
                     break
                 else:
+                    # 'result' contains the FID
+                    if result in seen_fids:
+                        print(f"      ⏭️  Skipping seen FID: {result}")
+                        continue
+                        
+                    seen_fids.add(result)
+                    new_this_screen += 1
                     player_count += 1
                     stats['players_processed'] += 1
                     stats['successes'] += 1
+
+            # End of Leaderboard Detection
+            # If we scrolled but found NO new players on the entire screen, we hit the end
+            if scroll_num > 0 and new_this_screen == 0:
+                print("\n🏁 End of leaderboard reached (no new players on current screen).")
+                break
 
             # Cleanup previous screenshot to save space (keep only current and prev)
             # Actually we already updated prev_screenshot. 

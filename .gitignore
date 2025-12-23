@@ -1,2 +1,7 @@
 # Local Netlify folder
 .netlify
+kingshot_data/*.png
+kingshot_data/*.txt
+kingshot_data/reports/*.txt
+.env
+scraper/.env

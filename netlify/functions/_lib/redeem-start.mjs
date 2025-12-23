@@ -17,71 +17,111 @@ export const handler = async (event) => {
             return cors({ error: 'Must provide onlyCode or onlyPlayer for synchronous redemption' }, 400)
         }
 
+        const running = await sql`SELECT id FROM jobs WHERE status = 'running' LIMIT 1`;
+        if (running.length) return cors({ error: 'A redemption job is already running' }, 409);
+
         const results = []
+        const jobId = `redeem-${Date.now()}`
+
+        let activeCodes = []
+        let players = []
+        let targetNickname = ''
 
         if (onlyPlayer) {
-            const activeCodes = await sql`
+            const pInfo = await sql`SELECT nickname FROM players WHERE id = ${onlyPlayer}`;
+            targetNickname = pInfo[0]?.nickname || onlyPlayer;
+            activeCodes = await sql`
                 SELECT c.code 
                 FROM codes c
                 LEFT JOIN player_codes pc ON c.code = pc.code AND pc.player_id = ${onlyPlayer}
                 WHERE c.active = true 
                 AND (pc.player_id IS NULL OR (pc.redeemed_at IS NULL AND pc.blocked_reason IS NULL))
-            `
-            console.log(`🚀 Checking ${activeCodes.length} active codes for player ${onlyPlayer}`)
-            const limit = 5
-            const chunks = []
-            for (let i = 0; i < activeCodes.length; i += limit) chunks.push(activeCodes.slice(i, i + limit))
-
-            let rateLimited = false
-            for (let i = 0; i < chunks.length; i++) {
-                if (rateLimited) break
-                const chunk = chunks[i]
-                await Promise.all(chunk.map(async (c) => {
-                    try {
-                        const res = await redeemGiftCode({ playerId: onlyPlayer, code: c.code })
-                        await appendHistory(sql, { ts: Date.now(), playerId: onlyPlayer, code: c.code, status: res.status, message: res.message, raw: res.raw })
-                        results.push({ code: c.code, playerId: onlyPlayer, status: res.status, message: res.message })
-                        if (res.status === 'rate_limited' || res.message === 'No response') rateLimited = true
-                    } catch (e) {
-                        results.push({ code: c.code, playerId: onlyPlayer, status: 'error', message: String(e.message || e) })
-                    }
-                }))
-                if (rateLimited) break
-                if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 1000))
-            }
+            `;
         } else if (onlyCode) {
-            const players = await sql`
-                SELECT p.id 
+            players = await sql`
+                SELECT p.id, p.nickname
                 FROM players p
                 LEFT JOIN player_codes pc ON p.id = pc.player_id AND pc.code = ${onlyCode}
                 WHERE pc.player_id IS NULL OR (pc.redeemed_at IS NULL AND pc.blocked_reason IS NULL)
-            `
-            console.log(`🚀 Triggering redemption for ${onlyCode} for ${players.length} players`)
+            `;
+        }
 
-            const limit = 5
-            const chunks = []
-            for (let i = 0; i < players.length; i += limit) chunks.push(players.slice(i, i + limit))
+        const totalTasks = onlyPlayer ? activeCodes.length : players.length
 
-            let rateLimited = false
-            for (let i = 0; i < chunks.length; i++) {
-                if (rateLimited) break
-                const chunk = chunks[i]
-                await Promise.all(chunk.map(async (p) => {
+        await sql`INSERT INTO jobs (id, status, started_at, total_tasks, done, successes, failures, only_code, only_player)
+                  VALUES (${jobId}, 'running', ${Date.now()}, ${totalTasks}, 0, 0, 0, ${onlyCode}, ${onlyPlayer});`;
+
+        // Start background processing (non-blocking return)
+        (async () => {
+            if (onlyPlayer) {
+                console.log(`🚀 Checking ${activeCodes.length} active codes for player ${onlyPlayer}`)
+                let done = 0, successes = 0, failures = 0
+
+                for (let i = 0; i < activeCodes.length; i++) {
+                    const c = activeCodes[i]
+                    try {
+                        const res = await redeemGiftCode({ playerId: onlyPlayer, code: c.code })
+                        await appendHistory(sql, { ts: Date.now(), playerId: onlyPlayer, code: c.code, status: res.status, message: res.message, raw: res.raw })
+
+                        if (res.status === 'success') successes++
+                        else failures++
+
+                        results.push({ code: c.code, playerId: onlyPlayer, status: res.status, message: res.message })
+
+                        done++
+                        const display = `Player: ${targetNickname} | Code: ${c.code}`
+                        await sql`UPDATE jobs SET done = ${done}, successes = ${successes}, failures = ${failures}, last_event = ${display} WHERE id = ${jobId}`
+
+                        if (res.status === 'rate_limited' || res.message === 'No response') {
+                            await sql`UPDATE jobs SET status = 'rate_limited', finished_at = ${Date.now()} WHERE id = ${jobId}`
+                            break
+                        }
+                    } catch (e) {
+                        failures++
+                        results.push({ code: c.code, playerId: onlyPlayer, status: 'error', message: String(e.message || e) })
+                        await sql`UPDATE jobs SET done = ${i + 1}, failures = ${failures} WHERE id = ${jobId}`
+                    }
+
+                    if (i < activeCodes.length - 1) await new Promise(r => setTimeout(r, 2300))
+                }
+            } else if (onlyCode) {
+                console.log(`🚀 Triggering redemption for ${onlyCode} for ${players.length} players`)
+                let done = 0, successes = 0, failures = 0
+
+                for (let i = 0; i < players.length; i++) {
+                    const p = players[i]
+                    const pName = p.nickname || p.id
                     try {
                         const res = await redeemGiftCode({ playerId: p.id, code: onlyCode })
                         await appendHistory(sql, { ts: Date.now(), playerId: p.id, code: onlyCode, status: res.status, message: res.message, raw: res.raw })
-                        results.push({ code: onlyCode, playerId: p.id, status: res.status, message: res.message })
-                        if (res.status === 'rate_limited' || res.message === 'No response') rateLimited = true
-                    } catch (e) {
-                        results.push({ code: onlyCode, playerId: p.id, status: 'error', message: String(e.message || e) })
-                    }
-                }))
-                if (rateLimited) break
-                if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 1000))
-            }
-        }
 
-        return cors({ ok: true, results })
+                        if (res.status === 'success') successes++
+                        else failures++
+
+                        results.push({ code: onlyCode, playerId: p.id, status: res.status, message: res.message })
+
+                        done++
+                        const display = `Player: ${pName} | Code: ${onlyCode}`
+                        await sql`UPDATE jobs SET done = ${done}, successes = ${successes}, failures = ${failures}, last_event = ${display} WHERE id = ${jobId}`
+
+                        if (res.status === 'rate_limited' || res.message === 'No response') {
+                            await sql`UPDATE jobs SET status = 'rate_limited', finished_at = ${Date.now()} WHERE id = ${jobId}`
+                            break
+                        }
+                    } catch (e) {
+                        failures++
+                        results.push({ code: onlyCode, playerId: p.id, status: 'error', message: String(e.message || e) })
+                        await sql`UPDATE jobs SET done = ${i + 1}, failures = ${failures} WHERE id = ${jobId}`
+                    }
+
+                    if (i < players.length - 1) await new Promise(r => setTimeout(r, 2300))
+                }
+            }
+
+            await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
+        })().catch(err => console.error('Background redemption failed:', err));
+
+        return cors({ ok: true, jobId })
     } catch (err) {
         console.error('❌ redeem-start error:', err)
         return cors({ error: String(err.message || err) }, 500)

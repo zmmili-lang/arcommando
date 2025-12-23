@@ -17,24 +17,49 @@ export const handler = async (event) => {
     const codes = await sql`SELECT code, note, active, added_at, last_tried_at FROM codes ORDER BY added_at NULLS LAST, code`
     const out = codes.map(c => ({ code: c.code, note: c.note || '', active: !!c.active, addedAt: c.added_at ? Number(c.added_at) : null, lastTriedAt: c.last_tried_at ? Number(c.last_tried_at) : null }))
 
-    // Synchronous redemption
-    const players = await sql`SELECT id FROM players`
-    const limit = 5
-    const chunks = []
-    for (let i = 0; i < players.length; i += limit) {
-        chunks.push(players.slice(i, i + limit))
-    }
+    const running = await sql`SELECT id FROM jobs WHERE status = 'running' LIMIT 1`;
+    if (running.length) return cors({ error: 'A redemption job is already running' }, 409);
 
-    for (const chunk of chunks) {
-        await Promise.all(chunk.map(async (p) => {
+    // Background redemption job
+    const players = await sql`SELECT id, nickname FROM players`
+    const jobId = `add-code-${code}-${Date.now()}`
+    const totalTasks = players.length
+
+    // Initial job record
+    await sql`INSERT INTO jobs (id, status, started_at, total_tasks, done, successes, failures, only_code)
+              VALUES (${jobId}, 'running', ${Date.now()}, ${totalTasks}, 0, 0, 0, ${code});`;
+
+    // Start background processing (non-blocking return)
+    (async () => {
+        let done = 0, successes = 0, failures = 0
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i]
+            const pName = p.nickname || p.id
             try {
                 const res = await redeemGiftCode({ playerId: p.id, code })
                 await appendHistory(sql, { ts: Date.now(), playerId: p.id, code, status: res.status, message: res.message, raw: res.raw })
-            } catch (e) {
-                console.error(`Failed to redeem ${code} for ${p.id}:`, e)
-            }
-        }))
-    }
 
-    return cors({ ok: true, codes: out })
+                if (res.status === 'success') successes++
+                else failures++
+
+                done++
+                const display = `Player: ${pName} | Code: ${code}`
+                await sql`UPDATE jobs SET done = ${done}, successes = ${successes}, failures = ${failures}, last_event = ${display} WHERE id = ${jobId}`
+
+                if (res.status === 'rate_limited' || res.message === 'No response') {
+                    await sql`UPDATE jobs SET status = 'rate_limited', finished_at = ${Date.now()} WHERE id = ${jobId}`
+                    break
+                }
+            } catch (e) {
+                failures++
+                console.error(`Failed to redeem ${code} for ${p.id}:`, e)
+                await sql`UPDATE jobs SET done = ${i + 1}, failures = ${failures} WHERE id = ${jobId}`
+            }
+            // Throttling
+            if (i < players.length - 1) await new Promise(r => setTimeout(r, 2300))
+        }
+        await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
+    })().catch(err => console.error('Background redemption failed:', err));
+
+    return cors({ ok: true, codes: out, jobId })
 }

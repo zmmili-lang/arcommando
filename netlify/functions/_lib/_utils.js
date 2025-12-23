@@ -13,7 +13,7 @@ export function getSql() {
             process.env.NETLIFY_DATABASE_URL ||
             process.env.DATABASE_URL ||
             process.env.NEON_DATABASE_URL
-        
+
         if (!url) {
             const errorMsg = 'DATABASE_URL is not set. ' +
                 'Please create a .env file in the project root with: DATABASE_URL=postgresql://... ' +
@@ -82,6 +82,13 @@ export async function ensureSchema() {
         only_player TEXT
     );
     `
+    // Migration for jobs table columns
+    try {
+        const sql = getSql();
+        await sql`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS only_code TEXT;`
+        await sql`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS only_player TEXT;`
+    } catch (e) { console.warn('Jobs migration ignored:', e.message); }
+
     await sql`
     CREATE TABLE IF NOT EXISTS history(
         id BIGSERIAL PRIMARY KEY,

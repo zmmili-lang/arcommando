@@ -12,8 +12,12 @@ export const handler = async (event) => {
         const playerId = String(body.playerId || '').trim()
         if (!playerId) return cors({ error: 'playerId required' }, 400)
 
-        const exists = await sql`SELECT 1 FROM players WHERE id = ${playerId}`
-        if (exists.length) return cors({ error: 'duplicate' }, 409)
+        const exists = await sql`SELECT id, nickname FROM players WHERE id = ${playerId}`
+        if (exists.length) {
+            const rows = await sql`SELECT id, nickname, avatar_image, added_at, last_redeemed_at FROM players ORDER BY added_at NULLS LAST, id`
+            const players = rows.map(r => ({ id: r.id, nickname: r.nickname || '', avatar_image: r.avatar_image || '', addedAt: r.added_at ? Number(r.added_at) : null, lastRedeemedAt: r.last_redeemed_at ? Number(r.last_redeemed_at) : null }))
+            return cors({ ok: true, message: 'Player already exists', players })
+        }
         const cnt = await sql`SELECT COUNT(*) as c FROM players`
         if (Number(cnt[0].c) >= 1000) return cors({ error: 'limit 1000 players' }, 400)
 

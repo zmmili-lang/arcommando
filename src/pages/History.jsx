@@ -24,19 +24,29 @@ export default function History({ adminPass }) {
     const [date, setDate] = useState(today())
     const [entries, setEntries] = useState([])
     const [summary, setSummary] = useState(null)
+    const [activeJob, setActiveJob] = useState(null)
     const [loading, setLoading] = useState(false)
     const [expanded, setExpanded] = useState(new Set())
 
     const load = async () => {
-        setLoading(true)
+        if (!activeJob) setLoading(true)
         try {
             const data = await api(`history-list?date=${date}`, { adminPass })
             setEntries(data.entries || [])
             setSummary(data.summary || null)
+            setActiveJob(data.activeJob || null)
         } finally { setLoading(false) }
     }
 
     useEffect(() => { load() }, [date])
+
+    // Polling logic for active jobs
+    useEffect(() => {
+        if (activeJob && (activeJob.status === 'running' || activeJob.status === 'rate_limited')) {
+            const timer = setTimeout(load, 3000)
+            return () => clearTimeout(timer)
+        }
+    }, [activeJob])
 
     const clearLogs = async () => {
         if (!confirm(`Clear logs for ${date}?`)) return
@@ -57,19 +67,56 @@ export default function History({ adminPass }) {
                 <h2 className="m-0">History</h2>
             </div>
 
-            <div className="row g-2 mb-3">
-                <div className="col-12 col-md-6">
-                    <input
-                        className="form-control"
-                        type="date"
-                        value={date}
-                        onChange={e => setDate(e.target.value)}
-                    />
-                </div>
-                <div className="col-12 col-md-6">
-                    <button className="btn btn-outline-danger w-100" onClick={clearLogs}>Clear logs (day)</button>
+            <div className="row mb-3">
+                <div className="col-12">
+                    <div className="input-group">
+                        <input
+                            className="form-control"
+                            type="date"
+                            value={date}
+                            onChange={e => setDate(e.target.value)}
+                        />
+                        <button className="btn btn-outline-danger" onClick={clearLogs}>Clear logs (day)</button>
+                    </div>
                 </div>
             </div>
+
+            {activeJob && (
+                <div className="card mb-3 border-primary bg-primary bg-opacity-10">
+                    <div className="card-body">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h5 className="card-title m-0">
+                                {activeJob.status === 'running' ? '🚀 Redemption in Progress' : '⏳ Rate Limited - Waiting...'}
+                            </h5>
+                            <span className="badge bg-primary">
+                                {Math.round((activeJob.done / activeJob.total) * 100)}%
+                            </span>
+                        </div>
+                        <div className="progress mb-2" style={{ height: 10 }}>
+                            <div
+                                className={`progress-bar progress-bar-striped progress-bar-animated ${activeJob.status === 'rate_limited' ? 'bg-warning' : 'bg-primary'}`}
+                                role="progressbar"
+                                style={{ width: `${(activeJob.done / activeJob.total) * 100}%` }}
+                            ></div>
+                        </div>
+                        <div className="d-flex justify-content-between small text-muted">
+                            <div>
+                                <strong>Progress:</strong> {activeJob.done} / {activeJob.total}
+                                <span className="ms-3 text-success">✓ {activeJob.successes}</span>
+                                <span className="ms-2 text-danger">✗ {activeJob.failures}</span>
+                            </div>
+                            <div className="text-primary fw-bold">
+                                {activeJob.lastEvent || 'Starting...'}
+                            </div>
+                        </div>
+                        {activeJob.status === 'rate_limited' && (
+                            <div className="mt-2 p-2 bg-warning bg-opacity-25 rounded small border border-warning">
+                                <strong>Rate Limit Alert:</strong> The Kingshot API is temporarily blocking requests. The script will automatically resume in about 1 minute.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {summary && (
                 <div className="d-flex gap-2 mb-3 flex-wrap">

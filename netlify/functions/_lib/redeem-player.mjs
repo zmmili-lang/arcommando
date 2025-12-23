@@ -11,9 +11,13 @@ export const handler = async (event) => {
     const playerId = String(body.playerId || '').trim()
     if (!playerId) return cors({ error: 'playerId required' }, 400)
 
+    const running = await sql`SELECT id FROM jobs WHERE status = 'running' LIMIT 1`;
+    if (running.length) return cors({ error: 'A redemption job is already running' }, 409);
+
     // Verify player exists
-    const exists = await sql`SELECT 1 FROM players WHERE id = ${playerId}`
+    const exists = await sql`SELECT nickname FROM players WHERE id = ${playerId}`
     if (!exists.length) return cors({ error: 'Player not found' }, 404)
+    const nickname = exists[0].nickname || playerId
 
     // Fetch active codes not yet redeemed or blocked for this player
     const activeCodes = await sql`
@@ -23,34 +27,44 @@ export const handler = async (event) => {
         WHERE c.active = true 
         AND (pc.player_id IS NULL OR (pc.redeemed_at IS NULL AND pc.blocked_reason IS NULL))
     `
-    console.log(`🚀 Checking ${activeCodes.length} active codes for player ${playerId}`)
+    const jobId = `redeem-player-${playerId}-${Date.now()}`
+    const totalTasks = activeCodes.length
 
-    const limit = 5
-    const chunks = []
-    for (let i = 0; i < activeCodes.length; i += limit) {
-        chunks.push(activeCodes.slice(i, i + limit))
-    }
-    let rateLimited = false
-    const redemptionResults = []
-    for (const chunk of chunks) {
-        if (rateLimited) break
-        await Promise.all(chunk.map(async (c) => {
+    // Initial job record
+    await sql`INSERT INTO jobs (id, status, started_at, total_tasks, done, successes, failures, only_player)
+              VALUES (${jobId}, 'running', ${Date.now()}, ${totalTasks}, 0, 0, 0, ${playerId});`;
+
+    // Start background processing (non-blocking return)
+    (async () => {
+        let done = 0, successes = 0, failures = 0
+        for (let i = 0; i < activeCodes.length; i++) {
+            const c = activeCodes[i]
             try {
                 const res = await redeemGiftCode({ playerId, code: c.code })
                 await appendHistory(sql, { ts: Date.now(), playerId, code: c.code, status: res.status, message: res.message, raw: res.raw })
-                redemptionResults.push({ code: c.code, status: res.status, message: res.message })
-                if (res.status === 'rate_limited' || res.message === 'No response') rateLimited = true
-            } catch (e) {
-                console.error(`Failed to redeem ${c.code} for ${playerId}:`, e)
-                redemptionResults.push({ code: c.code, status: 'error', message: String(e.message || e) })
-            }
-        }))
-        if (rateLimited) break
-        // Add a small delay between chunks to avoid rate limiting
-        if (chunks.indexOf(chunk) < chunks.length - 1) {
-            await new Promise(r => setTimeout(r, 1000))
-        }
-    }
 
-    return cors({ ok: true, redemptionResults })
+                if (res.status === 'success') successes++
+                else failures++
+
+                done++
+                const display = `Player: ${nickname} | Code: ${c.code}`
+                await sql`UPDATE jobs SET done = ${done}, successes = ${successes}, failures = ${failures}, last_event = ${display} WHERE id = ${jobId}`
+
+                if (res.status === 'rate_limited' || res.message === 'No response') {
+                    await sql`UPDATE jobs SET status = 'rate_limited', finished_at = ${Date.now()} WHERE id = ${jobId}`
+                    break
+                }
+            } catch (e) {
+                failures++
+                console.error(`Failed to redeem ${c.code} for ${playerId}:`, e)
+                await sql`UPDATE jobs SET done = ${i + 1}, failures = ${failures} WHERE id = ${jobId}`
+            }
+            // Throttling
+            if (i < activeCodes.length - 1) await new Promise(r => setTimeout(r, 2300))
+        }
+        await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
+    })().catch(err => console.error('Background redemption failed:', err));
+    ;
+
+    return cors({ ok: true, jobId })
 }

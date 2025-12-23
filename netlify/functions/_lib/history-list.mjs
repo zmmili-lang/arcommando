@@ -13,5 +13,21 @@ export const handler = async (event) => {
     const entries = rows.map(r => ({ ts: r.ts ? Number(r.ts) : null, playerId: r.player_id, nickname: r.nickname || '', avatar: r.avatar_image || '', code: r.code, status: r.status, message: r.message }))
     entries.sort((a, b) => b.ts - a.ts)
     const summary = entries.reduce((acc, e) => { acc[e.status] = (acc[e.status] || 0) + 1; return acc }, { success: 0, already_redeemed: 0, error: 0 })
-    return cors({ entries, summary })
+
+    // Also return the latest active job if any
+    const [activeJob] = await sql`SELECT * FROM jobs WHERE status IN ('running', 'rate_limited') ORDER BY started_at DESC LIMIT 1`
+
+    return cors({
+        entries,
+        summary,
+        activeJob: activeJob ? {
+            id: activeJob.id,
+            status: activeJob.status,
+            total: activeJob.total_tasks,
+            done: activeJob.done,
+            successes: activeJob.successes,
+            failures: activeJob.failures,
+            lastEvent: activeJob.last_event
+        } : null
+    })
 }

@@ -34,6 +34,10 @@ async function makeRequest(url, payload, { maxRetries = 3, retryDelayMs = 2000 }
         let data
         try { data = await res.json() } catch { data = null }
 
+        if (status === 429) {
+            return { status: 429, data: { code: 429, msg: 'RATE LIMITED' } }
+        }
+
         if (status === 200 && data) {
             const msg = typeof data.msg === 'string' ? data.msg.replace(/\.$/, '') : ''
             if (msg === 'TIMEOUT RETRY' && attempt < maxRetries - 1) {
