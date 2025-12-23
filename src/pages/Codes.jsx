@@ -45,10 +45,10 @@ export default function Codes({ adminPass }) {
             toast.success('Code added')
             setCode('')
             setCodes(data.codes || [])
-            // auto-start redeem for this code across all players
-            const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
-            await fetch(`/.netlify/functions/redeem-run-background?jobId=${encodeURIComponent(start.jobId)}`, { method: 'POST', headers: { 'x-admin-pass': adminPass } })
-            toast('Auto-redeem started')
+            // auto-redeem this code for all players
+            await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
+            toast.success('Auto-redeem completed')
+            load() // Refresh stats
         } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
     }
 
@@ -72,6 +72,22 @@ export default function Codes({ adminPass }) {
             // Force table refresh by loading fresh data
             await load()
         } catch (e) { setError(String(e.message || e)); toast.error('Remove failed') } finally { setLoading(false) }
+    }
+
+    const reRedeem = async (c) => {
+        if (!confirm(`Redeem code ${c.code} for all players who haven't received it yet?`)) return
+        setLoading(true)
+        setError('')
+        try {
+            const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c.code } })
+            toast.success(`Redemption completed for ${c.code}`)
+            load() // Refresh stats
+        } catch (e) {
+            setError(String(e.message || e));
+            toast.error('Redemption failed to start')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -104,7 +120,7 @@ export default function Codes({ adminPass }) {
                             <th style={{ width: 80 }}>Active</th>
                             <th className="d-none-mobile">Added (UTC)</th>
                             <th className="d-none-mobile">Redeemed</th>
-                            <th className="text-end" style={{ width: 80 }}></th>
+                            <th className="text-end" style={{ width: 180 }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -118,7 +134,17 @@ export default function Codes({ adminPass }) {
                                 </td>
                                 <td className="text-nowrap small text-muted d-none-mobile">{fmtUTC(c.addedAt)}</td>
                                 <td className="text-nowrap d-none-mobile">{c.stats ? `${c.stats.redeemedCount} / ${c.stats.totalPlayers}` : '-'}</td>
-                                <td className="text-end"><button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}><i className="bi bi-trash"></i></button></td>
+                                <td className="text-end">
+                                    <button
+                                        className="btn btn-sm btn-outline-success me-2"
+                                        onClick={() => reRedeem(c)}
+                                        disabled={loading}
+                                        title="Redeem for all players (skips already redeemed)"
+                                    >
+                                        <i className="bi bi-play-fill"></i> Redeem
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-danger" onClick={() => remove(c)} disabled={loading}><i className="bi bi-trash"></i></button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>

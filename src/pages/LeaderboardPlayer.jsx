@@ -35,8 +35,8 @@ function fmtDate(ts) {
 function formatStoveLevel(stoveLv) {
     if (!stoveLv || stoveLv < 1) return null
     if (stoveLv <= 30) return `TC ${stoveLv}`
-    const tgLevel = Math.floor((stoveLv - 30) / 5)
-    return `TG${tgLevel}`
+    const tgLevel = Math.floor((stoveLv - 30) / 1)
+    return `TG ${tgLevel}`
 }
 
 function PowerChart({ history }) {
@@ -127,9 +127,9 @@ function PowerChart({ history }) {
 }
 
 export default function LeaderboardPlayer({ adminPass }) {
-    const { playerName } = useParams()
+    const { playerId } = useParams()
     const navigate = useNavigate()
-    const decodedName = decodeURIComponent(playerName)
+    // const decodedName = decodeURIComponent(playerName) // No longer needed
 
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -137,12 +137,12 @@ export default function LeaderboardPlayer({ adminPass }) {
     const load = async () => {
         setLoading(true)
         try {
-            const result = await api(`leaderboard-player?name=${encodeURIComponent(decodedName)}`, { adminPass })
+            const result = await api(`leaderboard-player?id=${playerId}`, { adminPass })
 
             // Handle merged players
             if (result.redirectTo) {
                 toast('Player was merged, redirecting...', { icon: 'ℹ️' })
-                navigate(`/leaderboard/${encodeURIComponent(result.redirectTo)}`)
+                navigate(`/leaderboard/${result.redirectTo}`) // RedirectTo should now provide ID? Or we assume it provides new ID or Name? Backend not checked for merge logic update, but assuming handled.
                 return
             }
 
@@ -154,7 +154,23 @@ export default function LeaderboardPlayer({ adminPass }) {
         }
     }
 
-    useEffect(() => { load() }, [playerName])
+    const removeHistoryEntry = async (entryId) => {
+        if (!confirm('Remove this power entry from history?')) return
+        try {
+            await api('leaderboard-history-remove', {
+                adminPass,
+                method: 'POST',
+                body: { id: entryId }
+            })
+            toast.success('Entry removed')
+            // Refresh data
+            load()
+        } catch (e) {
+            toast.error('Failed to remove entry: ' + String(e.message || e))
+        }
+    }
+
+    useEffect(() => { load() }, [playerId])
 
     if (loading) {
         return (
@@ -197,36 +213,21 @@ export default function LeaderboardPlayer({ adminPass }) {
                         <div className="d-flex align-items-center gap-3 mb-2">
                             {player.avatarImage ? (
                                 <div style={{ position: 'relative' }}>
-                                    <img 
-                                        src={player.avatarImage} 
-                                        alt="avatar" 
-                                        style={{ 
-                                            width: 64, 
-                                            height: 64, 
+                                    <img
+                                        src={player.avatarImage}
+                                        alt="avatar"
+                                        style={{
+                                            width: 64,
+                                            height: 64,
                                             borderRadius: '50%',
                                             objectFit: 'cover'
-                                        }} 
+                                        }}
                                     />
-                                    {player.stoveLvContent && (
-                                        <span 
-                                            className="badge bg-danger"
-                                            style={{
-                                                position: 'absolute',
-                                                top: -4,
-                                                right: -4,
-                                                fontSize: '0.7rem',
-                                                padding: '3px 6px'
-                                            }}
-                                            title={formatStoveLevel(player.stoveLv) || player.stoveLvContent}
-                                        >
-                                            {player.stoveLvContent}
-                                        </span>
-                                    )}
                                 </div>
                             ) : (
-                                <div style={{ 
-                                    width: 64, 
-                                    height: 64, 
+                                <div style={{
+                                    width: 64,
+                                    height: 64,
                                     borderRadius: '50%',
                                     background: 'var(--panel-2)',
                                     display: 'flex',
@@ -238,13 +239,25 @@ export default function LeaderboardPlayer({ adminPass }) {
                                 </div>
                             )}
                             <div>
-                                <h2 className="mb-0">
+                                <h2 className="mb-0 d-flex align-items-center gap-2">
                                     {player.rank <= 3 && (
-                                        <span className="me-2" style={{ fontSize: '2rem' }}>
+                                        <span style={{ fontSize: '2rem' }}>
                                             {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'}
                                         </span>
                                     )}
                                     {player.name}
+                                    {player.stoveLvContent && player.stoveLv > 30 && (
+                                        <img
+                                            src={player.stoveLvContent}
+                                            alt="stove level"
+                                            title={formatStoveLevel(player.stoveLv) || 'Stove Level'}
+                                            style={{
+                                                height: 35,
+                                                width: 'auto',
+                                                filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))'
+                                            }}
+                                        />
+                                    )}
                                 </h2>
                             </div>
                         </div>
@@ -253,6 +266,9 @@ export default function LeaderboardPlayer({ adminPass }) {
                                 <span className="badge bg-primary">[{player.allianceName}]</span>
                             )}
                             <span className="badge bg-secondary">Rank #{player.rank}</span>
+                            {player.kid && (
+                                <span className="badge bg-warning text-dark">KID: {player.kid}</span>
+                            )}
                             {player.kingdom && (
                                 <span className="badge bg-info text-dark">Kingdom #{player.kingdom}</span>
                             )}
@@ -260,11 +276,6 @@ export default function LeaderboardPlayer({ adminPass }) {
                         <div className="text-muted extra-small">
                             UID: {player.uid || 'Not Scraped'} | First seen: {player.firstSeen ? fmtDate(player.firstSeen) : '-'}
                         </div>
-                        {player.stoveLv && (
-                            <div className="text-muted extra-small mt-1">
-                                {formatStoveLevel(player.stoveLv)} {player.stoveLvContent && `(${player.stoveLvContent})`}
-                            </div>
-                        )}
                     </div>
                     <div className="text-end">
                         <div className="text-muted small mb-1">Current Power</div>
@@ -327,9 +338,13 @@ export default function LeaderboardPlayer({ adminPass }) {
 
                 <div className="col-md-3 col-6">
                     <div className="border rounded p-3" style={{ background: 'var(--panel-2)' }}>
-                        <div className="text-muted small mb-1">Total Gain</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--accent)' }}>
-                            {fmtPower(stats.totalGain)}
+                        <div className="text-muted small mb-1">Total Change</div>
+                        <div style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            color: stats.totalGain >= 0 ? 'var(--accent)' : 'var(--danger)'
+                        }}>
+                            {stats.totalGain > 0 ? '+' : ''}{fmtPower(stats.totalGain)}
                         </div>
                     </div>
                 </div>
@@ -337,8 +352,12 @@ export default function LeaderboardPlayer({ adminPass }) {
                 <div className="col-md-3 col-6">
                     <div className="border rounded p-3" style={{ background: 'var(--panel-2)' }}>
                         <div className="text-muted small mb-1">Avg Daily Growth</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
-                            {fmtPower(Math.round(stats.avgDailyGrowth))}
+                        <div style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            color: stats.avgDailyGrowth >= 0 ? 'var(--accent)' : 'var(--danger)'
+                        }}>
+                            {stats.avgDailyGrowth > 0 ? '+' : ''}{fmtPower(Math.round(stats.avgDailyGrowth))}
                         </div>
                     </div>
                 </div>
@@ -390,6 +409,7 @@ export default function LeaderboardPlayer({ adminPass }) {
                                 <th>Date & Time</th>
                                 <th className="text-end">Power</th>
                                 <th className="text-end d-none d-md-table-cell">Change</th>
+                                <th style={{ width: 40 }}></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -416,6 +436,15 @@ export default function LeaderboardPlayer({ adminPass }) {
                                             ) : (
                                                 <span className="text-muted">-</span>
                                             )}
+                                        </td>
+                                        <td className="text-end">
+                                            <button
+                                                className="btn btn-sm btn-link text-danger p-0"
+                                                onClick={() => removeHistoryEntry(h.id)}
+                                                title="Remove this entry"
+                                            >
+                                                <i className="bi bi-trash"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 )

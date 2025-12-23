@@ -10,18 +10,27 @@ export async function handler(event) {
         await ensureSchema()
         const sql = getSql()
 
+        const playerId = event.queryStringParameters?.id
         const playerName = event.queryStringParameters?.name
 
-        if (!playerName) {
-            return cors({ error: 'Missing player name parameter' }, 400)
+        if (!playerId && !playerName) {
+            return cors({ error: 'Missing player id or name parameter' }, 400)
         }
 
         // Get player info (from unified table)
-        const playerRows = await sql`
-      SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
-      FROM players
-      WHERE nickname = ${playerName}
-    `
+        // We use dynamic conditions based on what's provided
+        // Construct the WHERE clause dynamically
+        // Note: nesting sql`` inside sql`` works, but let's be explicit
+        const playerRows = await (playerId
+            ? sql`SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
+                  FROM players
+                  WHERE id = ${playerId}`
+            : sql`SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
+                  FROM players
+                  WHERE nickname = ${playerName}`)
+
+        console.log(`[leaderboard-player] Fetching player: ID=${playerId}, Name=${playerName}`)
+        console.log(`[leaderboard-player] Found rows: ${playerRows.length}`)
 
         if (playerRows.length === 0) {
             return cors({ error: 'Player not found' }, 404)
@@ -39,7 +48,7 @@ export async function handler(event) {
 
         // Get complete power history (using stable UID)
         const history = await sql`
-      SELECT power, scraped_at
+      SELECT id, power, scraped_at
       FROM leaderboard_power_history
       WHERE player_id = ${player.uid}
       ORDER BY scraped_at DESC
@@ -102,31 +111,32 @@ export async function handler(event) {
         return cors({
             player: {
                 name: player.name,
-                uid: player.uid,
+                uid: String(player.uid),
                 firstSeen: player.first_seen ? Number(player.first_seen) : null,
                 lastSeen: player.last_seen ? Number(player.last_seen) : null,
                 kills: player.kills,
                 allianceName: player.alliance_name,
                 kingdom: player.kingdom,
-                kid: player.kid,
+                kid: player.kid ? String(player.kid) : null,
                 stoveLv: player.stove_lv,
                 stoveLvContent: player.stove_lv_content,
                 avatarImage: player.avatar_image,
                 currentPower,
-                rank
+                rank: Number(rank)
             },
             stats: {
-                totalGain,
-                powerChange24h,
-                powerChange7d,
-                peakPower,
+                totalGain: Number(totalGain),
+                powerChange24h: powerChange24h !== null ? Number(powerChange24h) : null,
+                powerChange7d: powerChange7d !== null ? Number(powerChange7d) : null,
+                peakPower: Number(peakPower),
                 peakPowerDate: peakPowerDate ? Number(peakPowerDate) : null,
-                avgDailyGrowth,
+                avgDailyGrowth: Number(avgDailyGrowth),
                 daysTracked: Math.floor(daysTracked),
                 totalReadings: history.length
             },
             history: history.map(h => ({
-                power: h.power,
+                id: String(h.id),
+                power: Number(h.power),
                 scrapedAt: h.scraped_at ? Number(h.scraped_at) : null
             }))
         })

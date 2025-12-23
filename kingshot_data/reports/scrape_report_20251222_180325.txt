@@ -1,0 +1,12 @@
+========================================
+      KINGSHOT SCRAPER REPORT
+========================================
+Start Time: 2025-12-22 18:03:25
+End Time:   2025-12-22 18:03:47
+Duration:   0:00:22.442840
+----------------------------------------
+Total Players Processed: 0
+Successful Scrapes:      0
+Failed/Skipped:          16
+Scrolls Completed:       2
+========================================

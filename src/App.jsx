@@ -3,6 +3,7 @@ import Players from './pages/Players.jsx'
 import Codes from './pages/Codes.jsx'
 import History from './pages/History.jsx'
 import Debug from './pages/Debug.jsx'
+import Scraper from './pages/Scraper.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import LeaderboardPlayer from './pages/LeaderboardPlayer.jsx'
 import { Toaster, toast } from 'react-hot-toast'
@@ -29,6 +30,7 @@ function SideNav() {
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
         { to: '/leaderboard', icon: 'trophy-fill', label: 'Leaderboard' },
+        { to: '/scraper', icon: 'robot', label: 'Scraper' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -69,6 +71,7 @@ function BottomNav() {
         { to: '/players', icon: 'people-fill', label: 'Players' },
         { to: '/codes', icon: 'gift-fill', label: 'Codes' },
         { to: '/leaderboard', icon: 'trophy-fill', label: 'Leaderboard' },
+        { to: '/scraper', icon: 'robot', label: 'Scraper' },
         { to: '/history', icon: 'clock-history', label: 'History' },
     ]
     return (
@@ -135,7 +138,8 @@ export default function App() {
                                 <Route path="/players" element={<Players {...common} />} />
                                 <Route path="/codes" element={<Codes {...common} />} />
                                 <Route path="/leaderboard" element={<Leaderboard {...common} />} />
-                                <Route path="/leaderboard/:playerName" element={<LeaderboardPlayer {...common} />} />
+                                <Route path="/leaderboard/:playerId" element={<LeaderboardPlayer {...common} />} />
+                                <Route path="/scraper" element={<Scraper {...common} />} />
                                 <Route path="/history" element={<History {...common} />} />
                                 <Route path="/debug" element={<Debug {...common} />} />
                             </Route>
