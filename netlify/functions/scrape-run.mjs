@@ -9,7 +9,7 @@ export const handler = async (event) => {
     if (!auth.ok) return auth.res
 
     const body = parseBody(event)
-    const { players = 50, fast = false, noApi = false, debugImages = false, autoYes = true } = body
+    const { players = 50, fast = false, noApi = false, debugImages = false, savePowerAttempts = false, autoYes = true } = body
 
     try {
         const fs = await import('fs')
@@ -36,6 +36,7 @@ export const handler = async (event) => {
         if (fast) args.push('--fast')
         if (noApi) args.push('--no-api')
         if (debugImages) args.push('--debug-images')
+        if (savePowerAttempts) args.push('--save-power-attempts')
 
         console.log('[SCRAPE-RUN] Spawning python in:', scraperDir)
 
@@ -53,7 +54,8 @@ export const handler = async (event) => {
             command: `python ${args.join(' ')}`,
             fast,
             noApi,
-            debugImages
+            debugImages,
+            savePowerAttempts
         })
     } catch (error) {
         console.error('[SCRAPE-RUN] Error:', error)

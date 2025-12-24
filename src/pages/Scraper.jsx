@@ -8,6 +8,7 @@ export default function Scraper() {
     const [fast, setFast] = useState(true)
     const [noApi, setNoApi] = useState(false)
     const [debugImages, setDebugImages] = useState(false)
+    const [savePowerAttempts, setSavePowerAttempts] = useState(false)
     const [autoYes, setAutoYes] = useState(true)
     const [loading, setLoading] = useState(false)
 
@@ -25,7 +26,7 @@ export default function Scraper() {
             const res = await fetch(`${API_BASE}/.netlify/functions/scrape-run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminPass, players, fast, noApi, debugImages, autoYes })
+                body: JSON.stringify({ adminPass, players, fast, noApi, debugImages, savePowerAttempts, autoYes })
             })
 
             const data = await res.json()
@@ -128,6 +129,20 @@ export default function Scraper() {
                         <input
                             className="form-check-input"
                             type="checkbox"
+                            id="savePowerAttempts"
+                            checked={savePowerAttempts}
+                            onChange={e => setSavePowerAttempts(e.target.checked)}
+                        />
+                        <label className="form-check-label" htmlFor="savePowerAttempts">
+                            <strong>Save All Power OCR Trials</strong>
+                        </label>
+                        <div className="form-text">Save all threshold/jitter crops for review (very useful for debugging skips).</div>
+                    </div>
+
+                    <div className="form-check form-switch mb-4">
+                        <input
+                            className="form-check-input"
+                            type="checkbox"
                             id="autoYes"
                             checked={autoYes}
                             onChange={e => setAutoYes(e.target.checked)}
@@ -159,7 +174,7 @@ export default function Scraper() {
                     <button
                         className="btn btn-sm btn-outline-secondary"
                         onClick={() => {
-                            const cmd = `python scraper/auto_scraper_tesseract.py --players ${players}${fast ? ' --fast' : ''}${noApi ? ' --no-api' : ''}${debugImages ? ' --debug-images' : ''}${autoYes ? ' --yes' : ''}`
+                            const cmd = `python scraper/auto_scraper_tesseract.py --players ${players}${fast ? ' --fast' : ''}${noApi ? ' --no-api' : ''}${debugImages ? ' --debug-images' : ''}${savePowerAttempts ? ' --save-power-attempts' : ''}${autoYes ? ' --yes' : ''}`
                             navigator.clipboard.writeText(cmd)
                             toast.success('Copied to clipboard!')
                         }}
@@ -173,6 +188,7 @@ export default function Scraper() {
                         {fast && ' --fast'}
                         {noApi && ' --no-api'}
                         {debugImages && ' --debug-images'}
+                        {savePowerAttempts && ' --save-power-attempts'}
                         {autoYes && ' --yes'}
                     </code>
                 </div>

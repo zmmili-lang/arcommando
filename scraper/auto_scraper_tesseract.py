@@ -39,6 +39,7 @@ GAME_PACKAGE = "com.run.tower.defense"
 
 # OCR Debugging
 SAVE_DEBUG_CROPS = False # Controlled by CLI argument now
+SAVE_POWER_ATTEMPTS = False # Save all threshold/jitter trials
 DEBUG_DIR = os.path.join(OUTPUT_DIR, 'debug_ocr')
 REPORTS_DIR = os.path.join(OUTPUT_DIR, 'reports')
 
@@ -301,52 +302,65 @@ def ocr_region(img, region, allowlist=None, debug_name=None, mode='text'):
         return ""
 
 def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
-    """Extract power value using an Advanced Voting system with Adaptive Normalization"""
+    """Extract power value using an Advanced Voting system with Jitter Retries and Adaptive Normalization"""
     try:
         img = Image.open(screenshot_path)
-        y1 = COORDS['FIRST_ROW_Y'] + (row_num * COORDS['ROW_HEIGHT']) + COORDS['POWER_Y_OFFSET'] + y_offset
-        y2 = y1 + COORDS['ROW_HEIGHT']
-        x1, x2 = COORDS['POWER_X1'], COORDS['POWER_X2']
         
-        cropped = img.crop((x1, y1, x2, y2))
+        # Jitter offsets: 0 (center), then small vertical shifts to combat drift
+        jitters = [0, -4, 4, -2, 2]
         
-        # VOTING SYSTEM: Try diverse thresholding profiles
-        # Trials span from very sensitive to very strict
         thresholds = [100, 130, 160, 190]
-        results = []
-        
         config = r'--psm 7 --oem 1 -c tessedit_char_whitelist=0123456789,'
         if os.path.exists(TESSERACT_PATH):
             pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
-        for i, t in enumerate(thresholds):
-            processed = preprocess_image(cropped, mode='numeric', threshold=t)
-            text = pytesseract.image_to_string(processed, config=config).strip()
-            text = text.replace(' ', '').replace(',', '').replace('O', '0').replace('o', '0')
-            cleaned = ''.join(c for c in text if c.isdigit())
-            
-            # Save debug image only for the "Balanced" (130) trial
-            if SAVE_DEBUG_CROPS and player_idx is not None and t == 130:
-                debug_path = os.path.join(DEBUG_DIR, f"player_{player_idx:03d}_row_{row_num+1}_power.png")
-                processed.save(debug_path)
-                
-            if cleaned:
-                results.append(cleaned)
+        all_valid_results = []
         
+        for j_idx, jitter in enumerate(jitters):
+            base_y1 = COORDS['FIRST_ROW_Y'] + (row_num * COORDS['ROW_HEIGHT']) + COORDS['POWER_Y_OFFSET'] + y_offset
+            y1 = base_y1 + jitter
+            y2 = y1 + COORDS['ROW_HEIGHT']
+            x1, x2 = COORDS['POWER_X1'], COORDS['POWER_X2']
+            
+            cropped = img.crop((x1, y1, x2, y2))
+            jitter_results = []
+            
+            for t_idx, t in enumerate(thresholds):
+                processed = preprocess_image(cropped, mode='numeric', threshold=t)
+                text = pytesseract.image_to_string(processed, config=config).strip()
+                text = text.replace(' ', '').replace(',', '').replace('O', '0').replace('o', '0')
+                cleaned = ''.join(c for c in text if c.isdigit())
+                
+                # Save debug image if requested
+                if player_idx is not None and (SAVE_DEBUG_CROPS or SAVE_POWER_ATTEMPTS):
+                    # Only save 130 threshold for standard debug; or ALL if power attempts enabled
+                    if SAVE_POWER_ATTEMPTS or (t == 130 and jitter == 0):
+                        jitter_label = f"j{jitter:+d}" if jitter != 0 else "center"
+                        debug_filename = f"player_{player_idx:03d}_row_{row_num+1}_power_t{t}_{jitter_label}.png"
+                        debug_path = os.path.join(DEBUG_DIR, debug_filename)
+                        processed.save(debug_path)
+                
+                if cleaned and len(cleaned) >= 6:
+                    jitter_results.append(cleaned)
+                    all_valid_results.append(cleaned)
+            
+            # If we found high confidence in this jitter (3+ thresholds agree), we can stop early
+            if jitter_results:
+                from collections import Counter
+                counts = Counter(jitter_results)
+                most_common_val, count = counts.most_common(1)[0]
+                if count >= 3:
+                    img.close()
+                    return most_common_val
+
         img.close()
         
-        if not results:
+        if not all_valid_results:
             return ""
             
-        # Filter results that are obviously too short (e.g. noise)
-        # High power is usually 8-9 digits.
-        valid_results = [r for r in results if len(r) >= 6]
-        if not valid_results:
-            valid_results = results # Fallback
-            
-        # VOTING: Pick the result that appears most frequently (consensus)
+        # VOTING: Pick the result that appears most frequently across all jitters/thresholds
         from collections import Counter
-        counts = Counter(valid_results)
+        counts = Counter(all_valid_results)
         most_common_val, count = counts.most_common(1)[0]
         
         # QUALITY HIERARCHY:
@@ -355,7 +369,7 @@ def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
         if count >= 2:
             return most_common_val
         
-        return max(valid_results, key=len)
+        return max(all_valid_results, key=len)
 
     except Exception as e:
         print(f"      ⚠️ Power OCR error: {e}")
@@ -888,11 +902,13 @@ def main():
     parser.add_argument('--no-api', action='store_true', help='Skip player profile API fetch for speed')
     parser.add_argument('--yes', '-y', action='store_true', help='Skip the "Press Enter" prompt')
     parser.add_argument('--debug-images', action='store_true', help='Enable saving of debug crop images')
+    parser.add_argument('--save-power-attempts', action='store_true', help='Save all threshold/jitter crops for review')
     args = parser.parse_args()
     
     # Set global debug flag
-    global SAVE_DEBUG_CROPS
+    global SAVE_DEBUG_CROPS, SAVE_POWER_ATTEMPTS
     SAVE_DEBUG_CROPS = args.debug_images
+    SAVE_POWER_ATTEMPTS = args.save_power_attempts
     
     if SAVE_DEBUG_CROPS:
         print("📸 Debug Images: ENABLED (Cleaning old images...)")

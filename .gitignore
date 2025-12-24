@@ -5,3 +5,5 @@ kingshot_data/*.txt
 kingshot_data/reports/*.txt
 .env
 scraper/.env
+*.png
+*.jpg
