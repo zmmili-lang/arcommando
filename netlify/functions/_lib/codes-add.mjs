@@ -33,11 +33,13 @@ export const handler = async (event) => {
         // Start background processing (non-blocking return)
         (async () => {
             try {
+                console.log(`🚀 [${jobId}] Starting background redemption for ${players.length} players with code: ${code}`);
                 let done = 0, successes = 0, failures = 0
                 for (let i = 0; i < players.length; i++) {
                     const p = players[i]
                     const pName = p.nickname || p.id
                     try {
+                        console.log(`[${jobId}] Processing player ${i + 1}/${players.length}: ${pName}`);
                         const res = await redeemGiftCode({ playerId: p.id, code })
                         await appendHistory(sql, { ts: Date.now(), playerId: p.id, code, status: res.status, message: res.message, raw: res.raw })
 
@@ -49,24 +51,26 @@ export const handler = async (event) => {
                         await sql`UPDATE jobs SET done = ${done}, successes = ${successes}, failures = ${failures}, last_event = ${display} WHERE id = ${jobId}`
 
                         if (res.status === 'rate_limited' || res.message === 'No response') {
+                            console.log(`[${jobId}] Rate limited or no response, stopping job`);
                             await sql`UPDATE jobs SET status = 'rate_limited', finished_at = ${Date.now()} WHERE id = ${jobId}`
                             break
                         }
                     } catch (e) {
                         failures++
-                        console.error(`Failed to redeem ${code} for ${p.id}:`, e)
+                        console.error(`[${jobId}] Failed to redeem ${code} for ${p.id}:`, e)
                         await sql`UPDATE jobs SET done = ${i + 1}, failures = ${failures} WHERE id = ${jobId}`
                     }
                     // Throttling
                     if (i < players.length - 1) await new Promise(r => setTimeout(r, 2300))
                 }
+                console.log(`✅ [${jobId}] Background redemption completed. Done: ${done}, Successes: ${successes}, Failures: ${failures}`);
                 await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
             } catch (err) {
-                console.error('Background redemption failed:', err);
+                console.error(`❌ [${jobId}] Background redemption failed:`, err);
                 try {
                     await sql`UPDATE jobs SET status = 'failed', finished_at = ${Date.now()} WHERE id = ${jobId}`;
                 } catch (updateErr) {
-                    console.error('Failed to update job status:', updateErr);
+                    console.error(`❌ [${jobId}] Failed to update job status:`, updateErr);
                 }
             }
         })();
