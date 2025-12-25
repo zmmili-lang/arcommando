@@ -89,6 +89,24 @@ export async function ensureSchema() {
         await sql`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS only_player TEXT;`
     } catch (e) { console.warn('Jobs migration ignored:', e.message); }
 
+    // Auto-cleanup stale jobs (stuck in 'running' for more than 10 minutes)
+    try {
+        const sql = getSql();
+        const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+        const staleJobs = await sql`
+            UPDATE jobs 
+            SET status = 'failed', finished_at = ${Date.now()}
+            WHERE status = 'running' 
+            AND started_at < ${tenMinutesAgo}
+            AND finished_at IS NULL
+            RETURNING id
+        `;
+        if (staleJobs.length > 0) {
+            console.log(`🧹 Auto-cleaned ${staleJobs.length} stale job(s):`, staleJobs.map(j => j.id));
+        }
+    } catch (e) { console.warn('Stale job cleanup failed:', e.message); }
+
+
     await sql`
     CREATE TABLE IF NOT EXISTS history(
         id BIGSERIAL PRIMARY KEY,

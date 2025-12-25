@@ -54,6 +54,17 @@ export default function History({ adminPass }) {
         await load()
     }
 
+    const cancelJob = async () => {
+        if (!activeJob) return
+        if (!confirm(`Cancel the current redemption job?\n\nThis will stop the job immediately. Progress: ${activeJob.done}/${activeJob.total}`)) return
+        try {
+            await api('jobs-cancel', { adminPass, method: 'POST', body: { jobId: activeJob.id } })
+            await load() // Refresh to show updated status
+        } catch (e) {
+            alert(`Failed to cancel job: ${e.message}`)
+        }
+    }
+
     const toggleExpand = (i) => {
         const newExpanded = new Set(expanded)
         if (newExpanded.has(i)) newExpanded.delete(i)
@@ -105,8 +116,17 @@ export default function History({ adminPass }) {
                                 <span className="ms-3 text-success">✓ {activeJob.successes}</span>
                                 <span className="ms-2 text-danger">✗ {activeJob.failures}</span>
                             </div>
-                            <div className="text-primary fw-bold">
-                                {activeJob.lastEvent || 'Starting...'}
+                            <div className="d-flex align-items-center gap-2">
+                                <div className="text-primary fw-bold">
+                                    {activeJob.lastEvent || 'Starting...'}
+                                </div>
+                                <button
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={cancelJob}
+                                    title="Cancel this job"
+                                >
+                                    <i className="bi bi-x-circle"></i> Cancel
+                                </button>
                             </div>
                         </div>
                         {activeJob.status === 'rate_limited' && (
