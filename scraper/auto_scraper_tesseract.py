@@ -9,17 +9,18 @@ import sys
 import time
 import json
 import hashlib
-import requests
 import io
-import threading
 import subprocess
-from ppadb.client import Client as AdbClient
-from PIL import Image, ImageEnhance, ImageFilter
-import shutil
+import threading
+import requests
 import datetime
+import shutil
+import uuid
+from ppadb.client import Client as AdbClient
+from PIL import Image, ImageGrab, ImageEnhance, ImageFilter, ImageOps
 import pytesseract
-import psycopg2
 import numpy as np
+import psycopg2
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -42,6 +43,17 @@ SAVE_DEBUG_CROPS = False # Controlled by CLI argument now
 SAVE_POWER_ATTEMPTS = False # Save all threshold/jitter trials
 DEBUG_DIR = os.path.join(OUTPUT_DIR, 'debug_ocr')
 REPORTS_DIR = os.path.join(OUTPUT_DIR, 'reports')
+REPORTS_DIR = os.path.join(OUTPUT_DIR, 'reports')
+
+def clear_debug_directory():
+    """Clear the debug_ocr directory on startup"""
+    if os.path.exists(DEBUG_DIR):
+        try:
+            shutil.rmtree(DEBUG_DIR)
+            os.makedirs(DEBUG_DIR)
+            print("   🧹 Cleared debug_ocr directory")
+        except Exception as e:
+            print(f"   ⚠️ Failed to clear debug directory: {e}")
 
 # Ensure directories exist
 for d in [OUTPUT_DIR, DEBUG_DIR]:
@@ -322,6 +334,21 @@ def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
             y2 = y1 + COORDS['ROW_HEIGHT']
             x1, x2 = COORDS['POWER_X1'], COORDS['POWER_X2']
             
+            # --- DEBUG: Save Full Row ---
+            # Save the layout context (full width, single row height) for off-line analysis
+            # Only need to do this once per row (e.g. at jitter 0)
+            if (SAVE_DEBUG_CROPS or SAVE_POWER_ATTEMPTS) and jitter == 0 and player_idx is not None:
+                 try:
+                     row_y1 = base_y1
+                     row_y2 = row_y1 + COORDS['ROW_HEIGHT']
+                     # Crop full width 0-1080
+                     full_row = img.crop((0, row_y1, 1080, row_y2))
+                     debug_path = os.path.join(DEBUG_DIR, f"debug_row_{row_num+1}_player_{player_idx}_full.png")
+                     full_row.save(debug_path)
+                 except Exception as e:
+                     print(f"      ⚠️ Failed to save full row debug: {e}")
+            # -----------------------------
+            
             cropped = img.crop((x1, y1, x2, y2))
             jitter_results = []
             
@@ -506,6 +533,209 @@ def get_db_connection():
         print(f"❌ Database connection error: {e}")
         return None
 
+def ensure_session_tables():
+    """Ensure scrape session tables exist"""
+    conn = get_db_connection()
+    if not conn: return
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Table: scrape_sessions
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scrape_sessions (
+                session_id TEXT PRIMARY KEY,
+                started_at BIGINT NOT NULL,
+                finished_at BIGINT,
+                status TEXT,
+                target_players INTEGER,
+                players_attempted INTEGER DEFAULT 0,
+                players_succeeded INTEGER DEFAULT 0,
+                players_failed INTEGER DEFAULT 0,
+                players_skipped INTEGER DEFAULT 0,
+                max_scrolls INTEGER,
+                use_api BOOLEAN,
+                notes TEXT
+            );
+        """)
+        
+        # Table: scrape_attempts
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scrape_attempts (
+                id BIGSERIAL PRIMARY KEY,
+                session_id TEXT REFERENCES scrape_sessions(session_id) ON DELETE CASCADE,
+                player_fid TEXT,
+                attempt_number INTEGER,
+                attempted_at BIGINT NOT NULL,
+                status TEXT,
+                failure_reason TEXT,
+                power BIGINT,
+                scroll_number INTEGER,
+                row_number INTEGER,
+                UNIQUE(session_id, player_fid, attempt_number)
+            );
+        """)
+        
+        # Indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_scrape_attempts_session ON scrape_attempts(session_id, status);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_scrape_attempts_fid ON scrape_attempts(player_fid, attempted_at DESC);")
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"      ⚠️ Database schema init error: {e}")
+        if conn: conn.close()
+
+def init_scrape_session(max_players, max_scrolls, use_api, notes=None):
+    """Initialize a new scrape session"""
+    ensure_session_tables()
+    session_id = f"scrape_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO scrape_sessions 
+                (session_id, started_at, status, target_players, max_scrolls, use_api, notes)
+                VALUES (%s, %s, 'running', %s, %s, %s, %s)
+            """, (session_id, int(time.time() * 1000), max_players, max_scrolls, use_api, notes))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"      ⚠️ Session init error: {e}")
+            if conn: conn.close()
+    
+    return session_id
+
+def record_player_attempt(session_id, player_fid, status, failure_reason=None, 
+                         power=None, scroll_num=None, row_num=None):
+    """Record a player scrape attempt"""
+    if not session_id: return
+
+    conn = get_db_connection()
+    if not conn: return
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Get attempt number for this player in this session
+        # Use player_fid "unknown" if None to avoid unique constraint if we want, 
+        # but realistically player_fid might be None if scraping completely failed before identifying user.
+        # In that case, we can't really enforce uniqueness easily or maybe we assume attempt for 'unknown' player?
+        # Let's handle null player_fid gracefully
+        
+        fid_val = player_fid if player_fid else f"unknown_row_{row_num}_scroll_{scroll_num}"
+
+        cursor.execute("""
+            SELECT COALESCE(MAX(attempt_number), 0) + 1 
+            FROM scrape_attempts 
+            WHERE session_id = %s AND player_fid = %s
+        """, (session_id, fid_val))
+        row = cursor.fetchone()
+        attempt_num = row[0] if row else 1
+        
+        cursor.execute("""
+            INSERT INTO scrape_attempts 
+            (session_id, player_fid, attempt_number, attempted_at, status, 
+             failure_reason, power, scroll_number, row_number)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (session_id, fid_val, attempt_num, int(time.time() * 1000), 
+              status, failure_reason, power, scroll_num, row_num))
+        
+        # Update session stats
+        if status == 'success':
+            cursor.execute("""
+                UPDATE scrape_sessions 
+                SET players_succeeded = players_succeeded + 1,
+                    players_attempted = players_attempted + 1
+                WHERE session_id = %s
+            """, (session_id,))
+        elif status == 'failed':
+            cursor.execute("""
+                UPDATE scrape_sessions 
+                SET players_failed = players_failed + 1,
+                    players_attempted = players_attempted + 1
+                WHERE session_id = %s
+            """, (session_id,))
+        elif status == 'skipped':
+            cursor.execute("""
+                UPDATE scrape_sessions 
+                SET players_skipped = players_skipped + 1
+                WHERE session_id = %s
+            """, (session_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"      ⚠️ Record attempt error: {e}")
+        if conn: conn.close()
+
+def finalize_scrape_session(session_id, status='completed'):
+    """Mark session as completed/interrupted/failed"""
+    if not session_id: return
+
+    conn = get_db_connection()
+    if not conn: return
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE scrape_sessions 
+            SET finished_at = %s, status = %s
+            WHERE session_id = %s
+        """, (int(time.time() * 1000), status, session_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"      ⚠️ Finalize session error: {e}")
+        if conn: conn.close()
+
+def get_failed_players(session_id):
+    """Get list of FIDs that failed in a session"""
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        cursor = conn.cursor()
+        # Fix: DISTINCT with ORDER BY must include the order column
+        # Group by player_fid to deduplicate, order by first attempt time
+        cursor.execute("""
+            SELECT player_fid, MAX(failure_reason)
+            FROM scrape_attempts
+            WHERE session_id = %s AND status = 'failed' AND player_fid NOT LIKE 'unknown%%'
+            GROUP BY player_fid
+            ORDER BY MIN(attempted_at)
+        """, (session_id,))
+        failed = cursor.fetchall()
+        conn.close()
+        return [(fid, reason) for fid, reason in failed]
+    except Exception as e:
+        print(f"      ⚠️ Get failed players error: {e}")
+        if conn: conn.close()
+        return []
+
+def get_last_session_id():
+    """Get the most recent session ID"""
+    conn = get_db_connection()
+    if not conn: return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT session_id FROM scrape_sessions
+            ORDER BY started_at DESC LIMIT 1
+        """, ())
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except Exception as e:
+        print(f"      ⚠️ Get last session error: {e}")
+        if conn: conn.close()
+        return None
+
 def check_player_exists_in_db(fid):
     """Check if a player already exists in the database"""
     conn = get_db_connection()
@@ -658,7 +888,7 @@ def post_process_player(profile_data, is_new, use_api):
 # MAIN SCRAPING LOOP
 # ============================================================================
 
-def process_single_player(device, screenshot_path, row_num, player_count, max_players, use_api=True, y_offset=0):
+def process_single_player(device, screenshot_path, row_num, player_count, max_players, use_api=True, y_offset=0, session_id=None, scroll_num=0):
     """Process a single player: capture power, tap, get FID, fetch API, save to DB"""
     
     if player_count >= max_players:
@@ -672,6 +902,9 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
     
     if not power or power < 1000:
         print(f"      ⚠️  Invalid power '{power_str}', skipping")
+        if session_id:
+            record_player_attempt(session_id, None, 'failed', failure_reason='invalid_power', 
+                                scroll_num=scroll_num, row_num=row_num)
         return "failed"  
     
     print(f"      Power: {power:,}")
@@ -685,6 +918,9 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
     img = fast_capture(device)
     if not img:
         print("      ⚠️  Failed to capture profile screen")
+        if session_id:
+            record_player_attempt(session_id, None, 'failed', failure_reason='profile_capture_failed', 
+                                scroll_num=scroll_num, row_num=row_num)
         device.shell(f"input tap {COORDS['BACK_BUTTON'][0]} {COORDS['BACK_BUTTON'][1]}")
         time.sleep(1.0)
         return "failed"
@@ -701,11 +937,20 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
             print(f"      🔙  Profile scrape failed, tapping Back")
             device.shell(f"input tap {COORDS['BACK_BUTTON'][0]} {COORDS['BACK_BUTTON'][1]}")
             time.sleep(0.8)
+        
+        if session_id:
+            record_player_attempt(session_id, None, 'failed', failure_reason='profile_ocr_failed', 
+                                scroll_num=scroll_num, row_num=row_num)
         return "failed"
     
     fid = profile_data['uid']
     print(f"      FID: {fid}")
     profile_data['power'] = power
+    
+    # Record successful attempt
+    if session_id:
+        record_player_attempt(session_id, fid, 'success', power=power, 
+                            scroll_num=scroll_num, row_num=row_num)
     
     # Check if NEW (needed for API force-verify)
     is_new = not check_player_exists_in_db(fid)
@@ -729,7 +974,7 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
     
     return fid
 
-def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_api=True):
+def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_api=True, session_id=None):
     """Main scraping function - processes players one by one"""
     print(f"\n🚀 Starting Tesseract scraper")
     print(f"   Max players: {max_players}")
@@ -745,6 +990,12 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
     # We WANT to scroll exactly 8 rows to eliminate any duplication.
     # NUM_VISIBLE_ROWS=8, so scrolling 8 rows moves us perfectly to the next batch.
     EXPECTED_SCROLL_PX = COORDS['ROW_HEIGHT'] * 8
+    
+    # If no session passed, create one
+    if not session_id:
+        session_id = init_scrape_session(max_players, max_scrolls, use_api)
+        
+    print(f"   Using Session ID: {session_id}")
     
 
     # Initialize stats
@@ -767,11 +1018,13 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
         
         if not screenshot_path:
             print("❌ Failed to capture initial screenshot")
+            # Record failed session status before returning
+            finalize_scrape_session(session_id, status='failed')
             return
 
         prev_screenshot = screenshot_path # Keep reference for drift calc
         current_y_drift = 0.0
-
+        
         for scroll_num in range(max_scrolls):
             stats['scrolls_completed'] = scroll_num
             print(f"\n============================================================")
@@ -807,7 +1060,9 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                     break
                     
                 # Process the player
-                result = process_single_player(device, screenshot_path, row, player_count, max_players, use_api=use_api, y_offset=current_y_drift)
+                result = process_single_player(device, screenshot_path, row, player_count, max_players, 
+                                            use_api=use_api, y_offset=current_y_drift, 
+                                            session_id=session_id, scroll_num=scroll_num)
                 
                 if result == "failed":
                     stats['errors'] += 1
@@ -819,6 +1074,11 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                     # 'result' contains the FID
                     if result in seen_fids:
                         print(f"      ⏭️  Skipping seen FID: {result}")
+                        if session_id:
+                            # We might want to record 'skipped' but maybe unnecessary spam?
+                            # Let's record it so we know we saw them again
+                            # record_player_attempt(session_id, result, 'skipped', failure_reason='duplicate_in_session')
+                            pass
                         continue
                         
                     seen_fids.add(result)
@@ -850,16 +1110,23 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
         print("\n🛑 Stopped by user.")
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
         stats['errors'] += 1
+        finalize_scrape_session(session_id, status='failed')
     finally:
+        finalize_scrape_session(session_id, status='completed')
+        
         # Generate Report
         end_time = datetime.datetime.now()
         duration = end_time - stats['start_time']
         
         report_content = [
             "========================================",
+            "========================================",
             "      KINGSHOT SCRAPER REPORT",
             "========================================",
+            f"Session ID: {session_id}",
             f"Start Time: {stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}",
             f"End Time:   {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
             f"Duration:   {duration}",
@@ -868,6 +1135,11 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
             f"Successful Scrapes:      {stats['successes']}",
             f"Failed/Skipped:          {stats['errors']}",
             f"Scrolls Completed:       {stats['scrolls_completed']}",
+            f"Success Rate:            {(stats['successes'] / stats['players_processed'] * 100) if stats['players_processed'] > 0 else 0:.1f}%",
+            "========================================",
+            "",
+            "To retry failed players (API/DB only), run:",
+            f"  python scraper/auto_scraper_tesseract.py --retry-session {session_id}",
             "========================================"
         ]
         
@@ -903,6 +1175,8 @@ def main():
     parser.add_argument('--yes', '-y', action='store_true', help='Skip the "Press Enter" prompt')
     parser.add_argument('--debug-images', action='store_true', help='Enable saving of debug crop images')
     parser.add_argument('--save-power-attempts', action='store_true', help='Save all threshold/jitter crops for review')
+    parser.add_argument('--retry-session', type=str, help='Retry failed players from a specific session ID (API/DB retry)')
+    parser.add_argument('--retry-last', action='store_true', help='Retry failed players from the most recent session')
     args = parser.parse_args()
     
     # Set global debug flag
@@ -910,23 +1184,12 @@ def main():
     SAVE_DEBUG_CROPS = args.debug_images
     SAVE_POWER_ATTEMPTS = args.save_power_attempts
     
+    # Clear debug directory if debugging is enabled
+    if SAVE_DEBUG_CROPS or SAVE_POWER_ATTEMPTS:
+        clear_debug_directory()
+
     if SAVE_DEBUG_CROPS:
-        print("📸 Debug Images: ENABLED (Cleaning old images...)")
-        if os.path.exists(DEBUG_DIR):
-            try:
-                # remove all files in the directory but keep the directory
-                for filename in os.listdir(DEBUG_DIR):
-                    file_path = os.path.join(DEBUG_DIR, filename)
-                    try:
-                        if os.path.isfile(file_path) or os.path.islink(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path)
-                    except Exception as e:
-                        print(f'Failed to delete {file_path}. Reason: {e}')
-            except Exception as e:
-                print(f"⚠️ Failed to clean debug directory: {e}")
-        os.makedirs(DEBUG_DIR, exist_ok=True)
+        print("📸 Debug Images: ENABLED")
     else:
         print("🚫 Debug Images: DISABLED")
     
@@ -939,6 +1202,70 @@ def main():
     if not device:
         return
     
+    # Handle Retries First
+    if args.retry_session or args.retry_last:
+        sid = args.retry_session
+        if args.retry_last:
+            sid = get_last_session_id()
+            if not sid:
+                print("❌ No previous session found.")
+                return
+        
+        if not sid:
+            print("❌ No session ID provided.")
+            return
+
+        print(f"\n🔄 Retrying failed players for session: {sid}")
+        failed = get_failed_players(sid)
+        if not failed:
+            print("✅ No failed players found in this session.")
+            return
+            
+        print(f"Found {len(failed)} failed players. Attempting to recover...")
+        
+        success_count = 0
+        for fid, reason in failed:
+            print(f"  Attempting FID {fid} (Reason: {reason})...")
+            # We can't easily re-OCR power without the image, but if we have FID 
+            # we can try to fetch profile and save to DB
+            
+            # Since we don't have the power value if it failed, we might only be able to
+            # fix 'api_failed' or 'db_failed' type errors if we saved FID.
+            # If reason was 'profile_ocr_failed' or 'invalid_power', we can't do much without re-scraping.
+            
+            if reason in ['invalid_power', 'profile_capture_failed', 'profile_ocr_failed']:
+                print(f"    ⚠️ Cannot retry '{reason}' offline. You must run the scraper again.")
+                continue
+                
+            # If we have FID, try to fetch and save
+            try:
+                # We need a dummy profile data
+                # Fetch fresh from API
+                api_data = fetch_player_profile(fid)
+                if api_data:
+                    # Construct profile data
+                    p_data = {
+                        'uid': fid,
+                        'power': 0, # We don't know power, so maybe 0 or lookup?
+                        # Actually save_player_to_database will update existing player info
+                    }
+                    p_data.update(api_data)
+                    
+                    if save_player_to_database(p_data):
+                        print(f"    ✅ Recovered FID {fid}")
+                        success_count += 1
+                        # Update attempt status?
+                        record_player_attempt(sid, fid, 'recovered', failure_reason='retry_success')
+                    else:
+                        print(f"    ❌ Failed to save DB")
+                else:
+                    print(f"    ❌ API fetch failed")
+            except Exception as e:
+                print(f"    ❌ Retry error: {e}")
+                
+        print(f"\n✅ Retry complete. Recovered {success_count}/{len(failed)} players.")
+        return
+
     # Get max players
     if args.players:
         max_players = args.players

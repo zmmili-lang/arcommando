@@ -4,12 +4,13 @@ import { useOutletContext } from 'react-router-dom'
 
 export default function Scraper() {
     const { API_BASE, adminPass } = useOutletContext()
-    const [players, setPlayers] = useState(50)
+    const [players, setPlayers] = useState(110)
     const [fast, setFast] = useState(true)
     const [noApi, setNoApi] = useState(false)
     const [debugImages, setDebugImages] = useState(false)
     const [savePowerAttempts, setSavePowerAttempts] = useState(false)
     const [autoYes, setAutoYes] = useState(true)
+    const [retryLast, setRetryLast] = useState(false)
     const [loading, setLoading] = useState(false)
 
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -26,7 +27,7 @@ export default function Scraper() {
             const res = await fetch(`${API_BASE}/.netlify/functions/scrape-run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminPass, players, fast, noApi, debugImages, savePowerAttempts, autoYes })
+                body: JSON.stringify({ adminPass, players, fast, noApi, debugImages, savePowerAttempts, autoYes, retryLast })
             })
 
             const data = await res.json()
@@ -70,88 +71,111 @@ export default function Scraper() {
                         Tesseract-based OCR scraper. Runs locally on the server/device.
                     </p>
 
-                    <div className="mb-3">
-                        <label className="form-label">Players to Scrape</label>
-                        <input
-                            type="number"
-                            className="form-control"
-                            value={players}
-                            onChange={e => setPlayers(parseInt(e.target.value) || 0)}
-                            min="1"
-                            max="1000"
-                        />
-                        <div className="form-text">Recommended: 50-200. No hard limit.</div>
+                    {/* Retry Option */}
+                    <div className="alert alert-secondary mb-4">
+                        <div className="form-check form-switch">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="retryLast"
+                                checked={retryLast}
+                                onChange={e => setRetryLast(e.target.checked)}
+                            />
+                            <label className="form-check-label fw-bold" htmlFor="retryLast">
+                                Retry Failed Players (Last Session)
+                            </label>
+                        </div>
+                        <div className="form-text mt-1">
+                            Only retry players that failed in the previous run. Ignores other settings.
+                        </div>
                     </div>
 
-                    <div className="form-check form-switch mb-3">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="fastMode"
-                            checked={fast}
-                            onChange={e => setFast(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="fastMode">
-                            <strong>Fast Mode</strong> (Skip game launch/navigation)
-                        </label>
-                        <div className="form-text">Assumes game is already on the leaderboard screen.</div>
-                    </div>
+                    {!retryLast && (
+                        <>
+                            <div className="mb-3">
+                                <label className="form-label">Players to Scrape</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={players}
+                                    onChange={e => setPlayers(parseInt(e.target.value) || 0)}
+                                    min="1"
+                                    max="1000"
+                                />
+                                <div className="form-text">Recommended: 50-200. No hard limit.</div>
+                            </div>
 
-                    <div className="form-check form-switch mb-4">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="noApi"
-                            checked={noApi}
-                            onChange={e => setNoApi(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="noApi">
-                            <strong>Speed Optimization</strong> (Skip Player API fetch)
-                        </label>
-                        <div className="form-text text-danger">Warning: Won't fetch nicknames/avatars. Only Power and FID.</div>
-                    </div>
+                            <div className="form-check form-switch mb-3">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="fastMode"
+                                    checked={fast}
+                                    onChange={e => setFast(e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="fastMode">
+                                    <strong>Fast Mode</strong> (Skip game launch/navigation)
+                                </label>
+                                <div className="form-text">Assumes game is already on the leaderboard screen.</div>
+                            </div>
 
-                    <div className="form-check form-switch mb-4">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="debugImages"
-                            checked={debugImages}
-                            onChange={e => setDebugImages(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="debugImages">
-                            <strong>Save Debug Images</strong>
-                        </label>
-                        <div className="form-text">Save cropped images for OCR debugging (clears old images on start).</div>
-                    </div>
+                            <div className="form-check form-switch mb-4">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="noApi"
+                                    checked={noApi}
+                                    onChange={e => setNoApi(e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="noApi">
+                                    <strong>Speed Optimization</strong> (Skip Player API fetch)
+                                </label>
+                                <div className="form-text text-danger">Warning: Won't fetch nicknames/avatars. Only Power and FID.</div>
+                            </div>
 
-                    <div className="form-check form-switch mb-4">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="savePowerAttempts"
-                            checked={savePowerAttempts}
-                            onChange={e => setSavePowerAttempts(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="savePowerAttempts">
-                            <strong>Save All Power OCR Trials</strong>
-                        </label>
-                        <div className="form-text">Save all threshold/jitter crops for review (very useful for debugging skips).</div>
-                    </div>
+                            <div className="form-check form-switch mb-4">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="debugImages"
+                                    checked={debugImages}
+                                    onChange={e => setDebugImages(e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="debugImages">
+                                    <strong>Save Debug Images</strong>
+                                </label>
+                                <div className="form-text">Save cropped images for OCR debugging (clears old images on start).</div>
+                            </div>
 
-                    <div className="form-check form-switch mb-4">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="autoYes"
-                            checked={autoYes}
-                            onChange={e => setAutoYes(e.target.checked)}
-                        />
-                        <label className="form-check-label" htmlFor="autoYes">
-                            <strong>Auto-Confirm</strong> (Skip prompts)
-                        </label>
-                        <div className="form-text">Automatically answer "yes" to confirmation prompts.</div>
-                    </div>
+                            <div className="form-check form-switch mb-4">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="savePowerAttempts"
+                                    checked={savePowerAttempts}
+                                    onChange={e => setSavePowerAttempts(e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="savePowerAttempts">
+                                    <strong>Save All Power OCR Trials</strong>
+                                </label>
+                                <div className="form-text">Save all threshold/jitter crops for review (very useful for debugging skips).</div>
+                            </div>
+
+                            <div className="form-check form-switch mb-4">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="autoYes"
+                                    checked={autoYes}
+                                    onChange={e => setAutoYes(e.target.checked)}
+                                />
+                                <label className="form-check-label" htmlFor="autoYes">
+                                    <strong>Auto-Confirm</strong> (Skip prompts)
+                                </label>
+                                <div className="form-text">Automatically answer "yes" to confirmation prompts.</div>
+                            </div>
+                        </>
+                    )}
 
                     <button
                         className="btn btn-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2"
@@ -163,7 +187,7 @@ export default function Scraper() {
                         ) : (
                             <i className="bi bi-play-fill text-white fs-5"></i>
                         )}
-                        <span>{loading ? 'Starting...' : 'Start Scraper Job'}</span>
+                        <span>{loading ? 'Starting...' : (retryLast ? 'Start Retry Job' : 'Start Scraper Job')}</span>
                     </button>
                 </div>
             </div>
@@ -174,7 +198,12 @@ export default function Scraper() {
                     <button
                         className="btn btn-sm btn-outline-secondary"
                         onClick={() => {
-                            const cmd = `python scraper/auto_scraper_tesseract.py --players ${players}${fast ? ' --fast' : ''}${noApi ? ' --no-api' : ''}${debugImages ? ' --debug-images' : ''}${savePowerAttempts ? ' --save-power-attempts' : ''}${autoYes ? ' --yes' : ''}`
+                            let cmd = 'python scraper/auto_scraper_tesseract.py'
+                            if (retryLast) {
+                                cmd += ' --retry-last'
+                            } else {
+                                cmd += ` --players ${players}${fast ? ' --fast' : ''}${noApi ? ' --no-api' : ''}${debugImages ? ' --debug-images' : ''}${savePowerAttempts ? ' --save-power-attempts' : ''}${autoYes ? ' --yes' : ''}`
+                            }
                             navigator.clipboard.writeText(cmd)
                             toast.success('Copied to clipboard!')
                         }}
@@ -184,12 +213,19 @@ export default function Scraper() {
                 </div>
                 <div className="card-body">
                     <code className="d-block text-break user-select-all p-3 rounded" style={{ background: '#1e1e1e', color: '#e0e0e0', fontFamily: 'monospace' }}>
-                        python scraper/auto_scraper_tesseract.py --players {players}
-                        {fast && ' --fast'}
-                        {noApi && ' --no-api'}
-                        {debugImages && ' --debug-images'}
-                        {savePowerAttempts && ' --save-power-attempts'}
-                        {autoYes && ' --yes'}
+                        python scraper/auto_scraper_tesseract.py
+                        {retryLast ? (
+                            ' --retry-last'
+                        ) : (
+                            <>
+                                {' --players ' + players}
+                                {fast && ' --fast'}
+                                {noApi && ' --no-api'}
+                                {debugImages && ' --debug-images'}
+                                {savePowerAttempts && ' --save-power-attempts'}
+                                {autoYes && ' --yes'}
+                            </>
+                        )}
                     </code>
                 </div>
             </div>
