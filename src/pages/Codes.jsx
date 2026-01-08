@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 
 async function api(path, { adminPass, method = 'GET', body } = {}) {
@@ -17,6 +18,7 @@ async function api(path, { adminPass, method = 'GET', body } = {}) {
 function fmtUTC(ts) { return ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC' : '-' }
 
 export default function Codes({ adminPass }) {
+    const navigate = useNavigate()
     const [codes, setCodes] = useState([])
     const [code, setCode] = useState('')
     const [loading, setLoading] = useState(false)
@@ -47,8 +49,8 @@ export default function Codes({ adminPass }) {
             setCodes(data.codes || [])
             // auto-redeem this code for all players
             await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
-            toast.success('Auto-redeem completed')
-            load() // Refresh stats
+            toast.success('Auto-redeem started')
+            navigate('/history')
         } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
     }
 
@@ -80,8 +82,8 @@ export default function Codes({ adminPass }) {
         setError('')
         try {
             const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c.code } })
-            toast.success(`Redemption completed for ${c.code}`)
-            load() // Refresh stats
+            toast.success(`Redemption started for ${c.code}`)
+            navigate('/history')
         } catch (e) {
             setError(String(e.message || e));
             toast.error('Redemption failed to start')

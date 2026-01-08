@@ -155,7 +155,7 @@ export default function History({ adminPass }) {
                             <th className="d-none-mobile" style={{ width: 100 }}>Time</th>
                             <th>Player</th>
                             <th>Code</th>
-                            <th style={{ width: 100 }}>Status</th>
+                            <th>Status</th>
                             <th className="d-none-mobile">Message</th>
                             <th className="d-md-none" style={{ width: 40 }}></th>
                         </tr>

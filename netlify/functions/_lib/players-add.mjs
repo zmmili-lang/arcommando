@@ -34,8 +34,13 @@ export const handler = async (event) => {
         }
 
         const now = Date.now()
-        await sql`INSERT INTO players (id, nickname, avatar_image, added_at, last_redeemed_at)
-                VALUES (${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null})`
+        await sql`INSERT INTO players (
+            id, nickname, avatar_image, added_at, last_redeemed_at, 
+            kid, stove_lv, stove_lv_content
+        ) VALUES (
+            ${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null},
+            ${Number(profile.kid) || null}, ${Number(profile.stove_lv) || null}, ${profile.stove_lv_content || ''}
+        )`
 
         const rows = await sql`SELECT id, nickname, avatar_image, added_at, last_redeemed_at FROM players ORDER BY added_at NULLS LAST, id`
         const players = rows.map(r => ({ id: r.id, nickname: r.nickname || '', avatar_image: r.avatar_image || '', addedAt: r.added_at ? Number(r.added_at) : null, lastRedeemedAt: r.last_redeemed_at ? Number(r.last_redeemed_at) : null }))

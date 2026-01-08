@@ -27,6 +27,12 @@ export const handler = async (event) => {
         WHERE c.active = true 
         AND (pc.player_id IS NULL OR (pc.redeemed_at IS NULL AND pc.blocked_reason IS NULL))
     `
+
+    // Check if there are any codes to redeem
+    if (activeCodes.length === 0) {
+        return cors({ ok: false, error: 'No active codes available to redeem for this player. All codes have been redeemed or blocked.' }, 200)
+    }
+
     const jobId = `redeem-player-${playerId}-${Date.now()}`
     const totalTasks = activeCodes.length
 
@@ -42,6 +48,14 @@ export const handler = async (event) => {
             try {
                 const res = await redeemGiftCode({ playerId, code: c.code })
                 await appendHistory(sql, { ts: Date.now(), playerId, code: c.code, status: res.status, message: res.message, raw: res.raw })
+
+                if (res.profile && res.profile.kid) {
+                    await sql`UPDATE players SET 
+                        kid = COALESCE(${Number(res.profile.kid) || null}, kid),
+                        stove_lv = COALESCE(${Number(res.profile.stove_lv) || null}, stove_lv),
+                        stove_lv_content = COALESCE(${res.profile.stove_lv_content || ''}, stove_lv_content)
+                        WHERE id = ${playerId}`
+                }
 
                 if (res.status === 'success') successes++
                 else failures++

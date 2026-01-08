@@ -189,26 +189,29 @@ def navigate_to_leaderboard(device):
     return True
 
 def perform_scroll(device):
-    """Scroll down the leaderboard"""
-    x1, y1 = COORDS['SCROLL_START']
-    x2, y2 = COORDS['SCROLL_END']
-    # Use 5000ms (5 seconds) for absolute zero inertia and perfect distance
-    device.shell(f"input swipe {x1} {y1} {x2} {y2} 5000")
-    time.sleep(3.0) # Full settle time
+    """
+    Scroll down the leaderboard by exactly 1615px (8 rows).
+    Uses a 5-second swipe duration for zero inertia and precise distance.
+    """
+    # Fixed scroll coordinates for 1615px scroll (8 rows)
+    # Start Y and End Y are calculated to give exactly 1615px distance
+    x = 540  # Center of screen
+    y_start = 1930
+    y_end = y_start - 1615  # = 315
+    
+    device.shell(f"input swipe {x} {y_start} {x} {y_end} 5000")
+    time.sleep(2.0)  # Wait for scroll to settle
 
 def calculate_scroll_shift(img1_path, img2_path):
-    """Calculate vertical shift between two screenshots"""
+    """Calculate vertical shift between two screenshots (for logging only)"""
     try:
         img1 = Image.open(img1_path).convert("L")
         img2 = Image.open(img2_path).convert("L")
         w, h = img1.size
         
-        # Analyze central strip (avoid scrollbars/edges)
-        # Focus on rank/avatar area (left side) which is reliable
         h_start = 380
         h_end = h - 200
         
-        # Crop strips (Rank+Avatar area)
         strip1 = np.array(img1.crop((0, h_start, 350, h_end))).astype(np.float32)
         strip2 = np.array(img2.crop((0, h_start, 350, h_end))).astype(np.float32)
         
@@ -216,16 +219,10 @@ def calculate_scroll_shift(img1_path, img2_path):
         min_diff = float('inf')
         best_offset = 0
         
-        # Search range: Constrained to Expected 1610 +/- 25px
-        # Matches new 8-row scroll distance
-        search_range = range(1585, 1635)
+        search_range = range(1585, 1645)
         
         for offset in search_range:
             if offset >= total_len: break
-            
-            # Content moves UP. 
-            # Bottom of PREV (strip1) matches Top of CURR (strip2)
-            # strip1[offset:] matches strip2[:-offset]
             
             s1 = strip1[offset:]
             s2 = strip2[:total_len-offset]
@@ -283,12 +280,16 @@ def preprocess_image(img, mode='text', threshold=None):
     
     return img
 
-def ocr_region(img, region, allowlist=None, debug_name=None, mode='text'):
+def ocr_region(img, region, allowlist=None, debug_name=None, mode='text', extra_config='', preprocess=True):
     """Extract text from a specific region"""
     try:
         x1, y1, x2, y2 = region
         cropped = img.crop((x1, y1, x2, y2))
-        processed = preprocess_image(cropped, mode=mode)
+        
+        if preprocess:
+             processed = preprocess_image(cropped, mode=mode)
+        else:
+             processed = cropped
         
         # Save processed crop for debugging if requested
         if debug_name and globals().get('SAVE_DEBUG_CROPS', True):
@@ -298,6 +299,9 @@ def ocr_region(img, region, allowlist=None, debug_name=None, mode='text'):
         config = r'--psm 7 --oem 1'
         if allowlist:
             config += f' -c tessedit_char_whitelist={allowlist}'
+        
+        if extra_config:
+            config += f' {extra_config}'
         
         if os.path.exists(TESSERACT_PATH):
             pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
@@ -335,13 +339,11 @@ def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
             x1, x2 = COORDS['POWER_X1'], COORDS['POWER_X2']
             
             # --- DEBUG: Save Full Row ---
-            # Save the layout context (full width, single row height) for off-line analysis
-            # Only need to do this once per row (e.g. at jitter 0)
-            if (SAVE_DEBUG_CROPS or SAVE_POWER_ATTEMPTS) and jitter == 0 and player_idx is not None:
+            # Only save once per row (at jitter 0)
+            if SAVE_DEBUG_CROPS and jitter == 0 and player_idx is not None:
                  try:
                      row_y1 = base_y1
                      row_y2 = row_y1 + COORDS['ROW_HEIGHT']
-                     # Crop full width 0-1080
                      full_row = img.crop((0, row_y1, 1080, row_y2))
                      debug_path = os.path.join(DEBUG_DIR, f"debug_row_{row_num+1}_player_{player_idx}_full.png")
                      full_row.save(debug_path)
@@ -358,14 +360,10 @@ def ocr_power_from_row(screenshot_path, row_num, player_idx=None, y_offset=0):
                 text = text.replace(' ', '').replace(',', '').replace('O', '0').replace('o', '0')
                 cleaned = ''.join(c for c in text if c.isdigit())
                 
-                # Save debug image if requested
-                if player_idx is not None and (SAVE_DEBUG_CROPS or SAVE_POWER_ATTEMPTS):
-                    # Only save 130 threshold for standard debug; or ALL if power attempts enabled
-                    if SAVE_POWER_ATTEMPTS or (t == 130 and jitter == 0):
-                        jitter_label = f"j{jitter:+d}" if jitter != 0 else "center"
-                        debug_filename = f"player_{player_idx:03d}_row_{row_num+1}_power_t{t}_{jitter_label}.png"
-                        debug_path = os.path.join(DEBUG_DIR, debug_filename)
-                        processed.save(debug_path)
+                # Save only center crop (jitter=0, threshold=130)
+                if SAVE_DEBUG_CROPS and player_idx is not None and t == 130 and jitter == 0:
+                    debug_path = os.path.join(DEBUG_DIR, f"player_{player_idx:03d}_row_{row_num+1}_power_center.png")
+                    processed.save(debug_path)
                 
                 if cleaned and len(cleaned) >= 6:
                     jitter_results.append(cleaned)
@@ -421,23 +419,133 @@ def scrape_profile_screen_from_image(img, player_idx=0):
     """Extract UID, Kills, Alliance, Kingdom from profile screen (PIL Image)"""
     try:
         uid = ""
-        # Try primary tight crop
-        for attempt in range(2):
-            uid = ocr_region(img, COORDS['PROFILE_UID_REGION'], allowlist='0123456789', debug_name=f"player_{player_idx:03d}_uid_a{attempt}")
-            uid = ''.join(c for c in uid if c.isdigit())
-            if len(uid) >= 7:
-                break
-            
-            # If still failing, try a slightly WIDER crop (covers cases where labels bleed in)
-            if attempt == 1:
-                print("      🔍 Tight crop failed, trying wider crop...")
-                wider_region = (COORDS['PROFILE_UID_REGION'][0] - 50, COORDS['PROFILE_UID_REGION'][1], 
-                                COORDS['PROFILE_UID_REGION'][2] + 50, COORDS['PROFILE_UID_REGION'][3])
-                uid = ocr_region(img, wider_region, debug_name=f"player_{player_idx:03d}_uid_wide")
-                uid = ''.join(c for c in uid if c.isdigit())
-                if len(uid) >= 7:
-                    break
-                    
+        # Try primary tight crop with optimized config for digits
+        # -c tessedit_char_whitelist=0123456789: Only digits
+        # --psm 7: Treat as single text line
+        # -c load_system_dawg=0 -c load_freq_dawg=0: Disable dictionary (prevents merging numbers into words)
+        # -c preserve_interword_spaces=1: Helps with tracking
+        
+        custom_config = r'--psm 7 -c tessedit_char_whitelist=0123456789 -c load_system_dawg=0 -c load_freq_dawg=0'
+        
+        uid = ocr_region(img, COORDS['PROFILE_UID_REGION'], allowlist='0123456789', debug_name=f"player_{player_idx:03d}_uid")
+        uid = ''.join(c for c in uid if c.isdigit())
+        
+        # FIX: Check for "111" merging/drop issue (e.g. 1629... vs 111629... or 777... vs 111777...)
+        # If the ID is shorter than expected (9 digits is standard for this kingdom range), retry with robust method.
+        # Dropped '111' prefex can result in 6, 7, or 8 digit strings.
+        if len(uid) < 9:
+             print(f"      🕵️  Suspicious short FID '{uid}' (<9 digits). Starting Progressive Erosion...")
+             
+             # Custom Separation Preprocessing
+             # Add padding to prevent border issues (Tesseract hates text touching edges)
+             x1, y1, x2, y2 = COORDS['PROFILE_UID_REGION']
+             # Expand crop by 15px wide, 5px tall
+             base_crop = img.crop((x1 - 15, y1 - 5, x2 + 15, y2 + 5))
+             
+             # 1. Resize Huge (8x)
+             w, h = base_crop.size
+             base_crop = base_crop.resize((w * 8, h * 8), Image.LANCZOS)
+             
+             # 2. Convert to Grayscale & Invert (Make Text Black on White)
+             base_crop = ImageOps.invert(base_crop.convert('L'))
+             
+             # PROGRESSIVE EROSION LOOP: Grid search for best separation
+             # Combinations of Filter Size (Erosion strength) and Threshold (Thickness)
+             configs = [
+                 (3, 160), # Baseline
+                 (3, 110), # Thinner
+                 (3, 50),  # Very Thin (Aggressive)
+                 (5, 150), # Stronger Filter
+                 (5, 110)  # Stronger Filter + Thin
+             ]
+             
+             original_uid = uid
+             best_uid_candidate = uid
+             
+             for f_size, thresh in configs:
+                 # 3. Apply MaxFilter
+                 eroded = base_crop.filter(ImageFilter.MaxFilter(f_size))
+                 
+                 # 4. Threshold
+                 fn = lambda x : 255 if x > thresh else 0
+                 eroded = eroded.point(fn, mode='1')
+                 
+                 # Try PSM 13 (Raw Line)
+                 # Allow typical "1" lookalikes in whitelist by removing whitelist and doing manual cleanup, 
+                 # OR just whitelist digits + lookalikes? Tesseract whitelist is strict. 
+                 # Let's stick to digits whitelist BUT if it fails, maybe '1' is being recognized as 'l'?
+                 # Actually, with '0-9' whitelist, Tesseract is forced to pick digits.
+                 # If it sees a vertical bar it might force it to 1, or drop it.
+                 # Let's try WITHOUT force-digit whitelist for the raw read, then clean.
+                 
+                 # PSM 13 + No Whitelist (Let it see 'l' or 'I')
+                 raw_text = ocr_region(eroded, (0, 0, w*8, h*8), allowlist=None, 
+                                    mode='numeric', extra_config=r'--psm 13', preprocess=False, debug_name=f"player_{player_idx:03d}_uid_f{f_size}_t{thresh}")
+                 
+                 # Post-process: Map lookalikes to 1
+                 # Common issues: 111 -> lll or III
+                 cleaned_text = raw_text.replace('l', '1').replace('I', '1').replace('i', '1').replace('|', '1').replace(']', '1').replace('[', '1')
+                 
+                 # Now filter digits
+                 raw_uid = ''.join(c for c in cleaned_text if c.isdigit())
+                 
+                 if len(raw_uid) > len(best_uid_candidate):
+                     print(f"      🔧 Improved FID (F{f_size}/T{thresh}): {best_uid_candidate} -> {raw_uid} (Raw: {raw_text})")
+                     best_uid_candidate = raw_uid
+                     
+                     if len(best_uid_candidate) >= 9:
+                         break # Found it!
+                 else:
+                     print(f"      [Debug] F{f_size}/T{thresh}: {raw_uid} (Raw: {raw_text})")
+
+             uid = best_uid_candidate
+             if uid == original_uid or len(uid) < 9:
+                 print(f"      ⚠️ Tesseract Erosion failed to recover full ID (Result: {uid}). Trying EasyOCR...")
+                 
+                 # EASYOCR FALLBACK
+                 # Lazy import and init to avoid startup lag
+                 try:
+                     import easyocr
+                     import numpy as np
+                     
+                     # Use global reader if available, else init
+                     if 'EASYOCR_READER' not in globals():
+                         print("      🚀 Initializing EasyOCR (Deep Learning Model)... This runs once.")
+                         globals()['EASYOCR_READER'] = easyocr.Reader(['en'], gpu=False, verbose=False)
+                     
+                     reader = globals()['EASYOCR_READER']
+                     
+                     # EasyOCR expects numpy array (OpenCV format) or bytes
+                     # Convert PIL crop to numpy
+                     x1, y1, x2, y2 = COORDS['PROFILE_UID_REGION']
+                     # Use padded crop for EasyOCR too
+                     easy_crop = img.crop((x1 - 10, y1 - 5, x2 + 10, y2 + 5))
+                     # Convert to numpy array (RGB)
+                     easy_np = np.array(easy_crop)
+                     
+                     # Run EasyOCR (allowlist digits)
+                     results = reader.readtext(easy_np, allowlist='0123456789')
+                     
+                     # Parse result: list of (bbox, text, conf)
+                     easy_id = ""
+                     best_conf = 0.0
+                     
+                     for _, text, conf in results:
+                         clean = ''.join(c for c in text if c.isdigit())
+                         # Append found blocks (sometimes it splits 111 777)
+                         easy_id += clean
+                     
+                     if len(easy_id) > len(uid):
+                         print(f"      🧠 EasyOCR Success: {uid} -> {easy_id}")
+                         uid = easy_id
+                     else:
+                         print(f"      EasyOCR Result: {easy_id} (No improvement)")
+                         
+                 except ImportError:
+                     print("      ⚠️ EasyOCR not installed. Skipping deep learning retry.")
+                 except Exception as e:
+                     print(f"      ⚠️ EasyOCR Error: {e}")
+
         alliance = ocr_region(img, COORDS['PROFILE_ALLIANCE_REGION'], allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz[]- ', mode='numeric')
         
         return {
@@ -736,23 +844,33 @@ def get_last_session_id():
         if conn: conn.close()
         return None
 
-def check_player_exists_in_db(fid):
-    """Check if a player already exists in the database"""
+def get_player_from_db(fid):
+    """Check if a player exists and return key metadata (like kid)"""
     conn = get_db_connection()
     if not conn:
-        return False
+        return {'exists': False, 'data': None}
     
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM players WHERE id = %s", (str(fid),))
+        cursor.execute("SELECT id, kid, nickname FROM players WHERE id = %s", (str(fid),))
         row = cursor.fetchone()
         cursor.close()
         conn.close()
-        return row is not None
+        
+        if row:
+            return {
+                'exists': True, 
+                'data': {'id': row[0], 'kid': row[1], 'nickname': row[2]}
+            }
+        return {'exists': False, 'data': None}
     except Exception as e:
         print(f"      ⚠️ Database check error: {e}")
         if conn: conn.close()
-        return False
+        return {'exists': False, 'data': None}
+
+# Keep legacy alias just in case, though we will update usage
+def check_player_exists_in_db(fid):
+    return get_player_from_db(fid)['exists']
 
 def save_player_to_database(player_data):
     """Save a single player to database immediately"""
@@ -845,16 +963,26 @@ def save_player_to_database(player_data):
                 pass
         return False
 
-def post_process_player(profile_data, is_new, use_api):
+def post_process_player(profile_data, is_new, use_api, db_player_data=None):
     """Background worker: API fetch and DB save"""
     fid = profile_data['uid']
     power = profile_data['power']
     
+    # Check if we have missing critical metadata in DB (Healing Logic)
+    # If existing player has NULL kid, we should try to fetch it even if use_api=False
+    missing_kid = False
+    if not is_new and db_player_data and db_player_data.get('kid') is None:
+        missing_kid = True
+
     # Rules:
     # 1. ALWAYS fetch if they are NEW (for verification)
-    # 2. Otherwise only fetch if use_api is TRUE
-    should_fetch_api = is_new or use_api
+    # 2. Fetch if use_api is TRUE
+    # 3. Fetch if we found MISSING DATA (kid) to heal the record
+    should_fetch_api = is_new or use_api or missing_kid
     
+    if missing_kid and not use_api:
+        print(f"      🩹 [BG] Healing missing Kingdom ID for {fid}...")
+
     api_data = None
     if should_fetch_api:
         api_data = fetch_player_profile(fid)
@@ -880,7 +1008,8 @@ def post_process_player(profile_data, is_new, use_api):
 
     # Save to database
     if save_player_to_database(profile_data):
-        print(f"      ✨ [BG] Saved FID {fid} ({profile_data.get('nickname', 'N/A')})")
+        action = "Created" if is_new else "Updated"
+        print(f"      ✨ [BG] {action} FID {fid} ({profile_data.get('nickname', 'N/A')})")
     else:
         print(f"      ⚠️  [BG] Failed to save FID {fid}")
 
@@ -927,14 +1056,20 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
     
     # Step 4: Extract FID and profile data
     profile_data = scrape_profile_screen_from_image(img, player_idx=player_count)
+    
+    # Safety Check: Are we still on the leaderboard?
+    # Sometimes taps miss or loading fails, and we never left the leaderboard.
+    # If we are seemingly on the leaderboard, we must NOT tap back, or we will exit to the main castle.
+    lb_keywords = ["leaderboard", "governor", "power", "personal", "ranking"]
+    check_text = ocr_region(img, COORDS['LEADERBOARD_CHECK_REGION']).lower()
+    is_on_leaderboard = any(k in check_text for k in lb_keywords)
+
     if not profile_data or not profile_data.get('uid'):
-        # Safety check using the image we just took
-        lb_keywords = ["leaderboard", "governor", "power", "personal", "ranking"]
-        check_text = ocr_region(img, COORDS['LEADERBOARD_CHECK_REGION']).lower()
-        if any(k in check_text for k in lb_keywords):
-            print(f"      🛡️  Safety: Still on leaderboard, skipping 'Back'")
+        if is_on_leaderboard:
+            print(f"      🛡️  Safety: Profile scrape failed, but we seem to be on Leaderboard. Skipping 'Back'.")
+            # We failed to initiate the profile view.
         else:
-            print(f"      🔙  Profile scrape failed, tapping Back")
+            print(f"      🔙  Profile scrape failed and we are NOT on leaderboard. Tapping Back.")
             device.shell(f"input tap {COORDS['BACK_BUTTON'][0]} {COORDS['BACK_BUTTON'][1]}")
             time.sleep(0.8)
         
@@ -942,6 +1077,11 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
             record_player_attempt(session_id, None, 'failed', failure_reason='profile_ocr_failed', 
                                 scroll_num=scroll_num, row_num=row_num)
         return "failed"
+    
+    # If we got profile data, we assume we ARE on the profile screen.
+    # But double check: if we somehow got profile data but 'is_on_leaderboard' is true, 
+    # it implies a false positive on profile scrape OR overlay issue. 
+    # Trusted profile data usually implies we are on profile.
     
     fid = profile_data['uid']
     print(f"      FID: {fid}")
@@ -952,12 +1092,14 @@ def process_single_player(device, screenshot_path, row_num, player_count, max_pl
         record_player_attempt(session_id, fid, 'success', power=power, 
                             scroll_num=scroll_num, row_num=row_num)
     
-    # Check if NEW (needed for API force-verify)
-    is_new = not check_player_exists_in_db(fid)
+    # Check if NEW or Existing, and get metadata
+    db_result = get_player_from_db(fid)
+    is_new = not db_result['exists']
+    db_player_data = db_result['data']
     
     # BACKGROUND POST-PROCESSING (Non-blocking)
     # This starts the API/DB work in another thread so we can go back immediately
-    bg_thread = threading.Thread(target=post_process_player, args=(profile_data, is_new, use_api))
+    bg_thread = threading.Thread(target=post_process_player, args=(profile_data, is_new, use_api, db_player_data))
     bg_thread.start()
     
     # DEVICE NAVIGATION (Blocking)
@@ -1034,6 +1176,8 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
             # If not first scroll, perform scroll and capture new screenshot
             if scroll_num > 0:
                 print(f"[SCROLL] Scrolling down ({scroll_num + 1}/{max_scrolls})...")
+                
+                # Simple fixed scroll - 1615px (8 rows)
                 perform_scroll(device)
                 
                 screenshot_filename = f"leaderboard_scroll_{scroll_num:03d}.png"
@@ -1043,12 +1187,17 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                     print("⚠️ Failed to capture screenshot, stopping.")
                     break
                     
-                # Calculate Drift
+                # Calculate Drift (for logging only)
                 if prev_screenshot and os.path.exists(prev_screenshot):
                     actual_shift = calculate_scroll_shift(prev_screenshot, screenshot_path)
-                    drift = actual_shift - EXPECTED_SCROLL_PX
-                    current_y_drift += drift
-                    print(f"   [DRIFT] Step: {drift:+.1f}px | Cumulative: {current_y_drift:+.1f}px")
+                    if actual_shift:
+                        drift = actual_shift - EXPECTED_SCROLL_PX
+                        current_y_drift += drift
+                        print(f"   [DRIFT] Step: {drift:+.1f}px | Cumulative: {current_y_drift:+.1f}px")
+
+                        # 🔧 RESET THE DRIFT FOR THE NEXT SCREEN
+                        # The physical screen doesn't have "drift" - it's just our measurement offset
+                        current_y_drift = 0.0  # Reset to zero after each scroll
                 
                 prev_screenshot = screenshot_path
 

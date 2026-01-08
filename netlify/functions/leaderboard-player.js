@@ -22,10 +22,10 @@ export async function handler(event) {
         // Construct the WHERE clause dynamically
         // Note: nesting sql`` inside sql`` works, but let's be explicit
         const playerRows = await (playerId
-            ? sql`SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
+            ? sql`SELECT id, id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
                   FROM players
                   WHERE id = ${playerId}`
-            : sql`SELECT id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
+            : sql`SELECT id, id as uid, nickname as name, first_seen, last_seen, kills, alliance_name, kingdom, kid, stove_lv, stove_lv_content, avatar_image
                   FROM players
                   WHERE nickname = ${playerName}`)
 
@@ -110,6 +110,7 @@ export async function handler(event) {
 
         return cors({
             player: {
+                id: String(player.id),
                 name: player.name,
                 uid: String(player.uid),
                 firstSeen: player.first_seen ? Number(player.first_seen) : null,

@@ -49,8 +49,13 @@ export const handler = async (event) => {
 
         // Insert
         const now = Date.now()
-        await sql`INSERT INTO players (id, nickname, avatar_image, added_at, last_redeemed_at)
-                VALUES (${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null})`
+        await sql`INSERT INTO players (
+            id, nickname, avatar_image, added_at, last_redeemed_at, 
+            kid, stove_lv, stove_lv_content
+        ) VALUES (
+            ${playerId}, ${profile.nickname}, ${profile.avatar_image || ''}, ${now}, ${null},
+            ${Number(profile.kid) || null}, ${Number(profile.stove_lv) || null}, ${profile.stove_lv_content || ''}
+        )`
 
         // Auto-redeem active codes
         const activeCodes = await sql`SELECT code FROM codes WHERE active = true`

@@ -79,7 +79,11 @@ const RESULT_MESSAGES = {
 }
 
 export async function redeemGiftCode({ playerId, code }) {
-    try { await fetchPlayerProfile(playerId) } catch (e) { /* proceed */ }
+    let profile = null
+    try {
+        profile = await fetchPlayerProfile(playerId)
+    } catch (e) { /* proceed */ }
+
     const payload = encodeData({ fid: String(playerId).trim(), cdk: code, time: Date.now() })
     const { status, data } = await makeRequest(REDEEM_URL, payload)
     if (!data) return { ok: false, status: 'error', message: 'No response', httpStatus: status, raw: null }
@@ -93,7 +97,8 @@ export async function redeemGiftCode({ playerId, code }) {
                 (rawMsg === 'NOT LOGIN') ? 'rate_limited' : 'error',
         message: friendly,
         httpStatus: status,
-        raw: data
+        raw: data,
+        profile // Return the profile so we can update DB
     }
     return normalized
 }

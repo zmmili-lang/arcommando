@@ -191,8 +191,14 @@ export function todayYMD(ts = Date.now()) { return new Date(ts).toISOString().sl
 export function deriveBlockedReason(entry) {
     const raw = (entry?.raw?.msg || '').toUpperCase()
     const msg = (entry?.message || '').toUpperCase()
+
+    // Specific block reasons
     if (raw === 'TIME ERROR' || msg.includes('EXPIRED')) return 'expired'
     if (raw === 'USED' || msg.includes('CLAIM LIMIT')) return 'limit'
+
+    // Generic block for any error status (not success, not already_redeemed)
+    if (entry?.status === 'error') return 'error'
+
     return null
 }
 

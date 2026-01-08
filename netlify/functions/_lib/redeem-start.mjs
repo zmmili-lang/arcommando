@@ -63,6 +63,14 @@ export const handler = async (event) => {
                         const res = await redeemGiftCode({ playerId: onlyPlayer, code: c.code })
                         await appendHistory(sql, { ts: Date.now(), playerId: onlyPlayer, code: c.code, status: res.status, message: res.message, raw: res.raw })
 
+                        if (res.profile && res.profile.kid) {
+                            await sql`UPDATE players SET 
+                                kid = COALESCE(${Number(res.profile.kid) || null}, kid),
+                                stove_lv = COALESCE(${Number(res.profile.stove_lv) || null}, stove_lv),
+                                stove_lv_content = COALESCE(${res.profile.stove_lv_content || ''}, stove_lv_content)
+                                WHERE id = ${onlyPlayer}`
+                        }
+
                         if (res.status === 'success') successes++
                         else failures++
 
@@ -94,6 +102,14 @@ export const handler = async (event) => {
                     try {
                         const res = await redeemGiftCode({ playerId: p.id, code: onlyCode })
                         await appendHistory(sql, { ts: Date.now(), playerId: p.id, code: onlyCode, status: res.status, message: res.message, raw: res.raw })
+
+                        if (res.profile && res.profile.kid) {
+                            await sql`UPDATE players SET 
+                                kid = COALESCE(${Number(res.profile.kid) || null}, kid),
+                                stove_lv = COALESCE(${Number(res.profile.stove_lv) || null}, stove_lv),
+                                stove_lv_content = COALESCE(${res.profile.stove_lv_content || ''}, stove_lv_content)
+                                WHERE id = ${p.id}`
+                        }
 
                         if (res.status === 'success') successes++
                         else failures++

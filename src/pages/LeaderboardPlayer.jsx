@@ -133,6 +133,9 @@ export default function LeaderboardPlayer({ adminPass }) {
 
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [codeStatus, setCodeStatus] = useState(null)
+    const [loadingCodes, setLoadingCodes] = useState(false)
+    const [showCodes, setShowCodes] = useState(false)
 
     const load = async () => {
         setLoading(true)
@@ -171,6 +174,76 @@ export default function LeaderboardPlayer({ adminPass }) {
     }
 
     useEffect(() => { load() }, [playerId])
+
+    const loadCodeStatus = async () => {
+        if (!data?.player?.id) return
+        setLoadingCodes(true)
+        try {
+            const result = await api(`player-status?id=${encodeURIComponent(data.player.id)}`, { adminPass })
+            setCodeStatus(result)
+        } catch (e) {
+            toast.error('Failed to load codes: ' + String(e.message || e))
+        } finally {
+            setLoadingCodes(false)
+        }
+    }
+
+    const toggleCodes = () => {
+        if (!data?.player?.id) {
+            toast.error('Player data not loaded yet')
+            return
+        }
+        if (!showCodes && !codeStatus) {
+            loadCodeStatus()
+        }
+        setShowCodes(!showCodes)
+    }
+
+    const removePlayer = async () => {
+        if (!data?.player?.id) return
+        if (!confirm(`Remove ${data.player.name || playerId}? This will delete all their data.`)) return
+        try {
+            await api('players-remove', { adminPass, method: 'POST', body: { id: data.player.id } })
+            toast.success('Player removed')
+            navigate('/leaderboard')
+        } catch (e) {
+            toast.error('Remove failed: ' + String(e.message || e))
+        }
+    }
+
+    const redeemAll = async () => {
+        if (!data?.player?.id) return
+        if (!confirm(`Redeem all active codes for ${data.player.name || playerId}?`)) return
+        const toastId = toast.loading('Starting redemption job...')
+        try {
+            const result = await api('redeem-player', { adminPass, method: 'POST', body: { playerId: data.player.id } })
+
+            if (result.ok && result.jobId) {
+                toast.success('Redirecting to History page...', { id: toastId, duration: 2000 })
+                // Navigate to history page to track progress
+                navigate('/history')
+            } else if (result.ok === false && result.error) {
+                toast(result.error, { id: toastId, icon: 'ℹ️', duration: 5000 })
+            } else if (result.error) {
+                toast.error(result.error, { id: toastId })
+            } else {
+                toast.error('Unexpected response from server', { id: toastId })
+            }
+        } catch (e) {
+            toast.error('Redemption failed: ' + String(e.message || e), { id: toastId })
+        }
+    }
+
+    const redeemOne = async (code) => {
+        if (!data?.player?.id) return
+        try {
+            const res = await api('redeem-single', { adminPass, method: 'POST', body: { id: data.player.id, code } })
+            toast[res.status === 'success' || res.status === 'already_redeemed' ? 'success' : 'error'](`${code}: ${res.message}`)
+            loadCodeStatus() // Refresh
+        } catch (e) {
+            toast.error(String(e.message || e))
+        }
+    }
 
     if (loading) {
         return (
@@ -278,6 +351,14 @@ export default function LeaderboardPlayer({ adminPass }) {
                         </div>
                     </div>
                     <div className="text-end">
+                        <div className="d-flex gap-2 mb-2 justify-content-end">
+                            <button className="btn btn-sm btn-outline-success" onClick={redeemAll} title="Redeem All Active Codes">
+                                <i className="bi bi-gift"></i> Redeem All
+                            </button>
+                            <button className="btn btn-sm btn-outline-danger" onClick={removePlayer} title="Remove Player">
+                                <i className="bi bi-trash"></i> Remove
+                            </button>
+                        </div>
                         <div className="text-muted small mb-1">Current Power</div>
                         <h3 className="mb-0" style={{ color: 'var(--accent)', fontWeight: 'bold' }}>
                             {fmtPower(player.currentPower)}
@@ -398,6 +479,51 @@ export default function LeaderboardPlayer({ adminPass }) {
 
             {/* Power Chart */}
             {history.length > 1 && <PowerChart history={[...history].reverse()} />}
+
+            {/* Gift Codes Section */}
+            <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h3 className="mb-0">Gift Codes</h3>
+                    <button className="btn btn-sm btn-outline-primary" onClick={toggleCodes}>
+                        {showCodes ? 'Hide' : 'Show'} Codes
+                    </button>
+                </div>
+                {showCodes && (
+                    <div className="border rounded p-3" style={{ background: 'var(--panel-2)' }}>
+                        {loadingCodes && (
+                            <div className="text-center py-3">
+                                <div className="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                            </div>
+                        )}
+                        {!loadingCodes && codeStatus && (
+                            <div className="d-flex gap-2 flex-wrap">
+                                {codeStatus.codes && codeStatus.codes.length > 0 ? (
+                                    codeStatus.codes.map(c => {
+                                        const redeemed = codeStatus.redeemed?.includes(c.code)
+                                        const blockedReason = codeStatus.blocked?.[c.code]
+                                        return (
+                                            <div key={c.code} className="d-flex align-items-center gap-2 border rounded px-3 py-2 bg-body">
+                                                <span className="fw-bold">{c.code}</span>
+                                                {redeemed && <span className="badge bg-success">Redeemed</span>}
+                                                {!redeemed && blockedReason === 'expired' && <span className="badge bg-secondary">Expired</span>}
+                                                {!redeemed && blockedReason === 'limit' && <span className="badge bg-secondary">Limit</span>}
+                                                {!redeemed && blockedReason === 'error' && <span className="badge bg-danger">Error</span>}
+                                                {!redeemed && !blockedReason && (
+                                                    <button className="btn btn-xs btn-primary" style={{ fontSize: 11 }} onClick={() => redeemOne(c.code)}>
+                                                        Redeem
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )
+                                    })
+                                ) : (
+                                    <div className="text-muted">No codes available</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* History Table */}
             <div>
