@@ -70,11 +70,11 @@ NAVIGATION_STEPS = [
 
 # Leaderboard Coordinates (from kingshot_scraper_v2.py)
 COORDS = {
-    'SCROLL_START': (540, 1930), # Shifted down to accommodate larger 8-row swipe
-    'SCROLL_END': (540, 320),    # Target 8-row scroll: 1610px total distance
+    'SCROLL_START': (540, 1500), # Shifted UP to avoid hitting bottom UI (Back/Alliance buttons)
+    'SCROLL_END': (540, 723),    # STRATEGY CHANGE: Scroll 6 rows instead of 8 (Target: 1207.5px)
     'FIRST_ROW_Y': 323,         # Shifted UP 81px (from 404) per user manual measurement
-    'ROW_HEIGHT': 201.25,      # Refined height (1610/8) for sub-pixel lock
-    'NUM_VISIBLE_ROWS': 8,
+    'ROW_HEIGHT': 201.25,      # Refined height
+    'NUM_VISIBLE_ROWS': 6,     # Only process top 6 rows to be safe
     'NAME_X1': 360,
     'NAME_X2': 770,
     'POWER_X1': 777,
@@ -190,17 +190,18 @@ def navigate_to_leaderboard(device):
 
 def perform_scroll(device):
     """
-    Scroll down the leaderboard by exactly 1615px (8 rows).
-    Uses a 5-second swipe duration for zero inertia and precise distance.
+    Scroll down the leaderboard by exactly 6 rows (target: 1207.5px).
+    Uses 6-row strategy for higher reliability on unstable emulators.
     """
-    # Fixed scroll coordinates for 1615px scroll (8 rows)
-    # Start Y and End Y are calculated to give exactly 1615px distance
+    # Target: 6 rows * 201.25 = 1207.5px
+    # Start: 1930 -> End: 722.5 (round to 723)
     x = 540  # Center of screen
-    y_start = 1930
-    y_end = y_start - 1615  # = 315
+    y_start = COORDS['SCROLL_START'][1]  # 1930
+    y_end = COORDS['SCROLL_END'][1]      # 723
     
+    # Ultra-slow scroll for maximum consistency
     device.shell(f"input swipe {x} {y_start} {x} {y_end} 5000")
-    time.sleep(2.0)  # Wait for scroll to settle
+    time.sleep(2.0)  # Long settlement time
 
 def calculate_scroll_shift(img1_path, img2_path):
     """Calculate vertical shift between two screenshots (for logging only)"""
@@ -1129,9 +1130,8 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
     prev_screenshot = None
     
     # Calculate Expected Scroll (Target)
-    # We WANT to scroll exactly 8 rows to eliminate any duplication.
-    # NUM_VISIBLE_ROWS=8, so scrolling 8 rows moves us perfectly to the next batch.
-    EXPECTED_SCROLL_PX = COORDS['ROW_HEIGHT'] * 8
+    # We WANT to scroll exactly 6 rows (Strategy Change for Stability)
+    EXPECTED_SCROLL_PX = COORDS['ROW_HEIGHT'] * 6
     
     # If no session passed, create one
     if not session_id:
@@ -1186,18 +1186,34 @@ def scrape_leaderboard_tesseract(device, max_players=1000, max_scrolls=100, use_
                 if not screenshot_path:
                     print("⚠️ Failed to capture screenshot, stopping.")
                     break
-                    
-                # Calculate Drift (for logging only)
+
+                
+                # Calculate Drift (for logging and correction)
                 if prev_screenshot and os.path.exists(prev_screenshot):
                     actual_shift = calculate_scroll_shift(prev_screenshot, screenshot_path)
                     if actual_shift:
                         drift = actual_shift - EXPECTED_SCROLL_PX
                         current_y_drift += drift
-                        print(f"   [DRIFT] Step: {drift:+.1f}px | Cumulative: {current_y_drift:+.1f}px")
+                        
+                        # Visual drift indicator
+                        if abs(drift) <= 5:
+                            drift_indicator = "✅"
+                        elif abs(drift) <= 15:
+                            drift_indicator = "⚠️ "
+                        else:
+                            drift_indicator = "❌"
+                        
+                        print(f"   [DRIFT] {drift_indicator} Step: {drift:+.1f}px | Cumulative: {current_y_drift:+.1f}px")
+                        
+                        # Warning for excessive drift
+                        if abs(current_y_drift) > 50:
+                            print(f"   ⚠️  WARNING: Large cumulative drift detected!")
+                            print(f"   💡 Consider running: python scraper/scroll_calibrator.py --measure")
+                        
+                        # ✅ APPLY CUMULATIVE DRIFT CORRECTION
+                        # Don't reset! The drift accumulates and we compensate by adjusting y_offset
+                        # This ensures OCR boxes stay aligned with actual player rows
 
-                        # 🔧 RESET THE DRIFT FOR THE NEXT SCREEN
-                        # The physical screen doesn't have "drift" - it's just our measurement offset
-                        current_y_drift = 0.0  # Reset to zero after each scroll
                 
                 prev_screenshot = screenshot_path
 
