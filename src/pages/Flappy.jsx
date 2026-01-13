@@ -80,6 +80,26 @@ export default function Flappy({ API_BASE }) {
         gameStateRef.current = gameState
     }, [gameState])
 
+    // Scoped Styles for Body (Mobile Fullscreen)
+    useEffect(() => {
+        // Save original styles
+        const originalOverflow = document.body.style.overflow
+        const originalHeight = document.body.style.height
+        const originalTouchAction = document.body.style.touchAction
+
+        // Apply Flappy specific styles
+        document.body.style.overflow = 'hidden'
+        document.body.style.height = '100%'
+        document.body.style.touchAction = 'none'
+
+        // Cleanup
+        return () => {
+            document.body.style.overflow = originalOverflow
+            document.body.style.height = originalHeight
+            document.body.style.touchAction = originalTouchAction
+        }
+    }, [])
+
     // Load Player
     useEffect(() => {
         if (slug) fetchPlayer(slug)

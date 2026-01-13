@@ -1,11 +1,5 @@
-/* Force body to be fixed on mobile to prevent scroll bounce */
-html,
-body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100%;
-}
+/* Global body styles removed to prevent affecting other pages. 
+   These are now handled via JS in Flappy.jsx */
 
 .flappy-container {
     display: flex;
