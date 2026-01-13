@@ -150,6 +150,20 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_power_history_player 
     ON leaderboard_power_history(player_id, scraped_at DESC);
     `
+
+    await sql`
+    CREATE TABLE IF NOT EXISTS flappy_scores(
+        id BIGSERIAL PRIMARY KEY,
+        player_id TEXT REFERENCES players(id) ON DELETE CASCADE,
+        score INTEGER NOT NULL,
+        created_at BIGINT NOT NULL
+    );
+    `
+
+    await sql`
+    CREATE INDEX IF NOT EXISTS idx_flappy_scores_score 
+    ON flappy_scores(score DESC);
+    `
 }
 
 export function cors(body, statusCode = 200) {

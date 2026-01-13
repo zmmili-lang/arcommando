@@ -115,6 +115,7 @@ function Layout({ logout, common }) {
 }
 
 import Spinny from './pages/Spinny.jsx'
+import Flappy from './pages/Flappy.jsx'
 
 export default function App() {
     const { pass, setTyped, typed, tryLogin, logout, isAuthed, error } = useAdminPass()
@@ -126,6 +127,8 @@ export default function App() {
                 {/* Public Routes */}
                 <Route path="/spinny" element={<Spinny API_BASE={API_BASE} />} />
                 <Route path="/spinny/:slug" element={<Spinny API_BASE={API_BASE} />} />
+                <Route path="/flappy" element={<Flappy API_BASE={API_BASE} />} />
+                <Route path="/flappy/:slug" element={<Flappy API_BASE={API_BASE} />} />
 
                 {/* Admin Routes */}
                 <Route path="/*" element={

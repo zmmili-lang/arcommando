@@ -190,6 +190,14 @@ export default function Spinny({ API_BASE }) {
                 >
                     Spin yourself too <i className="bi bi-arrow-right"></i>
                 </button>
+
+                <button
+                    className="btn btn-sm btn-outline-warning mt-4 rounded-pill px-4"
+                    onClick={() => navigate(player ? `/flappy/${player.id}` : '/flappy')}
+                    style={{ fontSize: '0.8rem', opacity: 0.8 }}
+                >
+                    🐣 Play Flappy Kingshot
+                </button>
             </div>
             <div className="mt-auto pt-4 text-muted small opacity-50">
                 With &lt;3 from [ARC] Mili (716)
