@@ -5,8 +5,8 @@ import './Flappy.css'
 
 // Physics Tweaks
 // Original Jump: -7. Reduced by 40% -> -4.2. Increased by 30% -> -5.5. Increased by 30% -> -7.2
-const JUMP_FORCE = -7.2
-const GRAVITY = 0.25 // Reduced gravity to match lower jump, making it "floaty" but controllable
+const JUMP_FORCE = -7
+const GRAVITY = 0.35 // Reduced gravity to match lower jump, making it "floaty" but controllable
 const BASE_SPEED = 3
 const BIRD_SIZE = 30
 const INITIAL_GAP = 180
