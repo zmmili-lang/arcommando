@@ -4,8 +4,8 @@ import { toast } from 'react-hot-toast'
 import './Flappy.css'
 
 // Physics Tweaks
-// Original Jump: -7. Reduced by 40% -> -4.2.
-const JUMP_FORCE = -4.2
+// Original Jump: -7. Reduced by 40% -> -4.2. Increased by 30% -> -5.5. Increased by 30% -> -7.2
+const JUMP_FORCE = -7.2
 const GRAVITY = 0.25 // Reduced gravity to match lower jump, making it "floaty" but controllable
 const BASE_SPEED = 3
 const BIRD_SIZE = 30

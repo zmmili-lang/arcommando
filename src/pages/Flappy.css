@@ -1,16 +1,31 @@
+/* Force body to be fixed on mobile to prevent scroll bounce */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+}
+
 .flappy-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
-    background: #1a1a1a;
+    width: 100%;
+    height: 100dvh;
+    /* Dynamic viewport height for mobile browsers */
+    background-color: #2c3e50;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
-    overflow: hidden;
-    position: relative;
+    position: fixed;
+    /* Fixed to prevent scroll */
+    top: 0;
+    left: 0;
     user-select: none;
+    touch-action: none;
+    /* Disable default touch actions */
     background-image: url('https://i0.wp.com/gamingonphone.com/wp-content/uploads/2025/03/kingshot-launch-cover.jpg');
     background-size: cover;
     background-position: center;
