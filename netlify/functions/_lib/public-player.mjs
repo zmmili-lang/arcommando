@@ -31,9 +31,9 @@ export const handler = async (event) => {
             return cors({ player: existing[0], message: 'Player already exists' })
         }
 
-        // Check limit
-        const cnt = await sql`SELECT COUNT(*) as c FROM players`
-        if (Number(cnt[0].c) >= 100) return cors({ error: 'Player limit reached (100)' }, 400)
+        // Check limit - REMOVED
+        // const cnt = await sql`SELECT COUNT(*) as c FROM players`
+        // if (Number(cnt[0].c) >= 100) return cors({ error: 'Player limit reached (100)' }, 400)
 
         // Fetch from Kingshot
         let profile

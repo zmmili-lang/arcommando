@@ -156,6 +156,17 @@ canvas {
     box-shadow: none;
 }
 
+.btn-link {
+    background: none;
+    border: none;
+    color: #ffd700;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.9rem;
+    z-index: 200;
+    pointer-events: auto;
+}
+
 .leaderboard-mini {
     margin-top: 1rem;
     background: rgba(0, 0, 0, 0.4);

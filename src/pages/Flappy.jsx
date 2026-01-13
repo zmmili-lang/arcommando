@@ -501,6 +501,27 @@ export default function Flappy({ API_BASE }) {
         return () => cancelAnimationFrame(frameIdRef.current)
     }, [])
 
+    const handleLogout = (e) => {
+        if (e) e.stopPropagation()
+        setPlayer(null)
+        navigate('/flappy')
+    }
+
+    const handleShare = async (e) => {
+        if (e) e.stopPropagation()
+        const text = `I just scored ${finalScore} in Flappy Kingshot! Can you beat me?`
+        const url = window.location.href
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'Flappy Kingshot', text, url })
+            } catch (err) { console.error(err) }
+        } else {
+            navigator.clipboard.writeText(`${text} ${url}`)
+            toast.success('Score copied to clipboard!')
+        }
+    }
+
     // Loading State
     if (loading && !player) return <div className="flappy-container">Loading...</div>
 
@@ -557,6 +578,10 @@ export default function Flappy({ API_BASE }) {
                                 e.stopPropagation();
                                 prepareGame()
                             }}>PLAY</button>
+
+                            <button className="btn-link mt-3" onClick={handleLogout}>
+                                Switch Player
+                            </button>
                             <div className="leaderboard-mini mt-3">
                                 <small>Current High Score: {highScore}</small>
                             </div>
@@ -594,11 +619,16 @@ export default function Flappy({ API_BASE }) {
                                 prepareGame();
                             }}>RETRY</button>
 
-                            <button className="btn btn-outline-light btn-sm mt-3 d-block mx-auto" onClick={(e) => {
-                                e.stopPropagation();
-                                saveScore(finalScore);
-                                setGameState('MENU');
-                            }}>Exit to Menu</button>
+                            <div className="d-flex gap-2 justify-content-center mt-3">
+                                <button className="btn btn-sm btn-outline-warning" onClick={handleShare}>
+                                    Share Score
+                                </button>
+                                <button className="btn btn-outline-light btn-sm" onClick={(e) => {
+                                    e.stopPropagation();
+                                    saveScore(finalScore);
+                                    setGameState('MENU');
+                                }}>Exit</button>
+                            </div>
 
                             <div className="leaderboard-mini mt-3">
                                 <h6 className="text-start mb-2">🏆 Global Top 50</h6>
