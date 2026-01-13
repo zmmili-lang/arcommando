@@ -3,19 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import './Flappy.css'
 
-const GRAVITY = 0.4
+// Physics Tweaks
+// Original Jump: -7. Reduced by 40% -> -4.2.
+const JUMP_FORCE = -4.2
+const GRAVITY = 0.25 // Reduced gravity to match lower jump, making it "floaty" but controllable
 const BASE_SPEED = 3
 const BIRD_SIZE = 30
 const INITIAL_GAP = 180
-const SPIN_SOUND = "https://www.myinstants.com/media/sounds/o-ii-a-i-o-iii-a-i.mp3"
 
-// Expanded motivational messages (More 'Daddy/Good Girl' themes)
+// Expanded motivational messages
 const MESSAGES = [
-    "Harder, Daddy! 🥵", "Spank me! 👋", "Choke me! 🧣",
+    "Harder, Daddy! 🥵", "Spank me! 👋", "Choke me! 🧣", "Good boy! 🐶",
     "Deeper! 🕳️", "Oh yes! 💦", "Just like that! 🔥", "Don't stop! 🛑",
     "Punish me! 😈", "Fill me up! 🍺", "Make me scream! 😱",
     "Who's your daddy? 🥸", "Obey me! 🛐", "Naughty! 😈", "Dominate me! ⛓️",
-    "Beg for it! 🛐", "Use me! 🛠️", "Too big! 🍆", "So wet! 🌊",
+    "Beg for it! 🛐", "Use me! 🛠️", "Too big! 🍆", "So wet! 🌊", "Explosion! 💥",
     "Good girl! 🎀", "Daddy's watching! 👀", "Be a good girl! 💅", "Take it! 💥",
     "Choke on it! 🧣", "Spank me harder! 👋", "Daddy likes that! 👍", "Naughty girl! 😈"
 ]
@@ -49,7 +51,6 @@ export default function Flappy({ API_BASE }) {
     // ----------------------------------------------------------------
     const canvasRef = useRef(null)
     const frameIdRef = useRef(null)
-    const audioRef = useRef(new Audio(SPIN_SOUND))
 
     // Refs for real-time tracking inside loop
     const scoreRef = useRef(0)
@@ -124,8 +125,6 @@ export default function Flappy({ API_BASE }) {
                 setPlayer(data.player)
                 navigate(`/flappy/${data.player.id}`)
                 birdImgRef.current = loadImg(data.player.avatar_image || 'https://i.imgur.com/BbbgFxP.png')
-                // No need to await here as loading state isn't covering this transition the same way, 
-                // but good practice to fire it immediately.
                 fetchLeaderboard(data.player.id)
             } else {
                 toast.error(data.error || 'Failed to find/add player')
@@ -201,25 +200,15 @@ export default function Flappy({ API_BASE }) {
 
     const startGame = () => {
         setGameState('PLAYING')
-        birdRef.current.vy = -7
-        playJumpSound()
+        birdRef.current.vy = JUMP_FORCE
         loop()
-    }
-
-    const playJumpSound = () => {
-        // Only play if really playing
-        if (gameStateRef.current !== 'PLAYING') return
-        const a = audioRef.current
-        a.currentTime = 0
-        a.volume = 0.3
-        a.play().catch(() => { })
     }
 
     const showRandomMsg = () => {
         const m = MESSAGES[Math.floor(Math.random() * MESSAGES.length)]
         setMsg(null)
         setTimeout(() => setMsg(m), 50)
-        setTimeout(() => setMsg(null), 2000)
+        setTimeout(() => setMsg(null), 2500)
     }
 
     const resetEntities = () => {
@@ -270,14 +259,13 @@ export default function Flappy({ API_BASE }) {
             if (screenX > -50 && screenX < width + 50) {
                 const ghostY = getHeightForGhost(g.score)
 
-                // Ghost Glow
-                ctx.shadowColor = 'white';
-                ctx.shadowBlur = 10;
+                // Ghost Glow REMOVED for mobile performance
                 ctx.globalAlpha = 0.8;
 
                 // Vertical line
                 ctx.strokeStyle = 'rgba(255,255,255,0.6)'
                 ctx.setLineDash([5, 5])
+                ctx.lineWidth = 1;
                 ctx.beginPath()
                 ctx.moveTo(screenX + 15, 0)
                 ctx.lineTo(screenX + 15, height)
@@ -288,14 +276,12 @@ export default function Flappy({ API_BASE }) {
                 try {
                     ctx.drawImage(g.img, screenX, ghostY, 40, 40)
                 } catch (e) {
-                    // Fallback if image fails
+                    // Fallback
                     ctx.fillStyle = 'purple'
                     ctx.beginPath()
                     ctx.arc(screenX + 20, ghostY + 20, 20, 0, Math.PI * 2)
                     ctx.fill()
                 }
-
-                ctx.shadowBlur = 0;
 
                 // Name & Score
                 ctx.fillStyle = '#fff'
@@ -370,9 +356,7 @@ export default function Flappy({ API_BASE }) {
         ctx.fillText(currentScore, width / 2, 80)
 
         // Real-time Leaderboard (Top Left)
-        // Calc Rank in Loop
         const lb = leaderboardRef.current || []
-        // Rank = (Number of people with score > currentScore) + 1
         const rank = lb.filter(p => p.score > currentScore).length + 1
 
         ctx.textAlign = 'left'
@@ -398,7 +382,7 @@ export default function Flappy({ API_BASE }) {
 
         // Draw Me if not in top 3
         if (rank > 3) {
-            y += 5 // gap
+            y += 5
             ctx.fillStyle = '#ffd700'
             const txt = `#${rank} You: ${currentScore}`
             ctx.strokeText(txt, 20, y)
@@ -473,10 +457,10 @@ export default function Flappy({ API_BASE }) {
 
             if (!p.passed && bird.x > p.x + p.w) {
                 p.passed = true
-                scoreRef.current += 1 // Update Ref Score
+                scoreRef.current += 1
 
                 // Motivation
-                if (scoreRef.current % 10 === 0 || Math.random() > 0.85) showRandomMsg()
+                if (scoreRef.current > 0 && scoreRef.current % 50 === 0) showRandomMsg()
             }
         })
 
@@ -499,8 +483,7 @@ export default function Flappy({ API_BASE }) {
             return
         }
         if (gameStateRef.current === 'PLAYING') {
-            birdRef.current.vy = -7
-            playJumpSound()
+            birdRef.current.vy = JUMP_FORCE
         }
     }
 
@@ -511,7 +494,7 @@ export default function Flappy({ API_BASE }) {
         }
         window.addEventListener('keydown', handleKd)
         return () => window.removeEventListener('keydown', handleKd)
-    }, []) // Empty deps is fine cause we use Refs
+    }, [])
 
     // Cleanup loop
     useEffect(() => {
