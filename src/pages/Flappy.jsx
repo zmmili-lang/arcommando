@@ -59,6 +59,7 @@ export default function Flappy({ API_BASE }) {
     const speedRef = useRef(BASE_SPEED)
     const gameStateRef = useRef('MENU') // Sync with state for loop checks
     const leaderboardRef = useRef([])   // For real-time rank calc
+    const nextMsgDistRef = useRef(100)  // Track when to show next msg
 
     // Game Entities
     const birdRef = useRef({ y: 300, vy: 0, x: 80, rotation: 0 })
@@ -212,6 +213,7 @@ export default function Flappy({ API_BASE }) {
         levelRef.current = 1
         distanceRef.current = 0
         speedRef.current = BASE_SPEED
+        nextMsgDistRef.current = 100
         setMsg(null)
 
         resetEntities()
@@ -427,6 +429,13 @@ export default function Flappy({ API_BASE }) {
 
         distanceRef.current += speedRef.current
         const currentScore = scoreRef.current
+
+        // Motivation by Distance (every 100m)
+        const distM = Math.floor(distanceRef.current / 10)
+        if (distM >= nextMsgDistRef.current) {
+            showRandomMsg()
+            nextMsgDistRef.current += 100
+        }
 
         // Level / Difficulty Update
         const currentLevel = 1 + Math.floor(currentScore / 5)
