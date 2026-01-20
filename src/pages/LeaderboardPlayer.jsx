@@ -12,6 +12,7 @@ async function api(path, { adminPass, method = 'GET', body } = {}) {
         body: body ? JSON.stringify(body) : undefined
     })
     if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`)
+    if (res.status === 202) return {} // Background function accepted
     return res.json()
 }
 
@@ -216,19 +217,11 @@ export default function LeaderboardPlayer({ adminPass }) {
         if (!confirm(`Redeem all active codes for ${data.player.name || playerId}?`)) return
         const toastId = toast.loading('Starting redemption job...')
         try {
-            const result = await api('redeem-player', { adminPass, method: 'POST', body: { playerId: data.player.id } })
+            await api('redeem-player-background', { adminPass, method: 'POST', body: { playerId: data.player.id } })
 
-            if (result.ok && result.jobId) {
-                toast.success('Redirecting to History page...', { id: toastId, duration: 2000 })
-                // Navigate to history page to track progress
-                navigate('/history')
-            } else if (result.ok === false && result.error) {
-                toast(result.error, { id: toastId, icon: 'ℹ️', duration: 5000 })
-            } else if (result.error) {
-                toast.error(result.error, { id: toastId })
-            } else {
-                toast.error('Unexpected response from server', { id: toastId })
-            }
+            toast.success('Redirecting to History page...', { id: toastId, duration: 2000 })
+            // Navigate to history page to track progress
+            navigate('/history')
         } catch (e) {
             toast.error('Redemption failed: ' + String(e.message || e), { id: toastId })
         }

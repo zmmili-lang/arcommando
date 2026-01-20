@@ -15,37 +15,56 @@ function encodeData(data) {
     return { sign, ...data }
 }
 
-async function postJSON(url, payload) {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    })
-    return res
+async function postJSON(url, payload, timeout = 15000) {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), timeout)
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        })
+        return res
+    } finally {
+        clearTimeout(id)
+    }
 }
 
-async function makeRequest(url, payload, { maxRetries = 3, retryDelayMs = 2000 } = {}) {
+async function makeRequest(url, payload, { maxRetries = 3, retryDelayMs = 2000, timeout = 15000 } = {}) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const res = await postJSON(url, payload)
-        const status = res.status
-        let data
-        try { data = await res.json() } catch { data = null }
+        try {
+            const res = await postJSON(url, payload, timeout)
+            const status = res.status
+            let data
+            try { data = await res.json() } catch { data = null }
 
-        if (status === 429) {
-            return { status: 429, data: { code: 429, msg: 'RATE LIMITED' } }
-        }
-
-        if (status === 200 && data) {
-            const msg = typeof data.msg === 'string' ? data.msg.replace(/\.$/, '') : ''
-            if (msg === 'TIMEOUT RETRY' && attempt < maxRetries - 1) {
-                await new Promise(r => setTimeout(r, retryDelayMs))
-                continue
+            if (status === 429) {
+                return { status: 429, data: { code: 429, msg: 'RATE LIMITED' } }
             }
-            return { status, data }
+
+            if (status === 200 && data) {
+                const msg = typeof data.msg === 'string' ? data.msg.replace(/\.$/, '') : ''
+                if (msg === 'TIMEOUT RETRY' && attempt < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, retryDelayMs))
+                    continue
+                }
+                return { status, data }
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                console.error(`Request timed out after ${timeout}ms`)
+                // Don't retry immediately on timeout if we want, or do? 
+                // Usually timeout means server is unhappy. Let's count it as a fail or retry?
+                // Let's retry on timeout too.
+            } else {
+                console.error('Request failed:', e)
+            }
         }
+
         if (attempt < maxRetries - 1) await new Promise(r => setTimeout(r, retryDelayMs))
     }
     return { status: 0, data: null }

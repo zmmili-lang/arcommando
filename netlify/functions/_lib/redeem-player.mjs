@@ -40,8 +40,8 @@ export const handler = async (event) => {
     await sql`INSERT INTO jobs (id, status, started_at, total_tasks, done, successes, failures, only_player)
               VALUES (${jobId}, 'running', ${Date.now()}, ${totalTasks}, 0, 0, 0, ${playerId});`;
 
-    // Start background processing (non-blocking return)
-    (async () => {
+    // Start background processing (awaiting for Background Function)
+    try {
         let done = 0, successes = 0, failures = 0
         for (let i = 0; i < activeCodes.length; i++) {
             const c = activeCodes[i]
@@ -77,8 +77,10 @@ export const handler = async (event) => {
             if (i < activeCodes.length - 1) await new Promise(r => setTimeout(r, 2300))
         }
         await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
-    })().catch(err => console.error('Background redemption failed:', err));
-    ;
+        await sql`UPDATE jobs SET status = 'finished', finished_at = ${Date.now()} WHERE id = ${jobId}`;
+    } catch (err) {
+        console.error('Background redemption failed:', err);
+    }
 
-    return cors({ ok: true, jobId })
+    return cors({ ok: true, jobId, message: 'Job started in background' })
 }

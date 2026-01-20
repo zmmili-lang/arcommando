@@ -12,6 +12,7 @@ async function api(path, { adminPass, method = 'GET', body } = {}) {
         body: body ? JSON.stringify(body) : undefined
     })
     if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`)
+    if (res.status === 202) return {} // Background function accepted
     return res.json()
 }
 
@@ -48,7 +49,7 @@ export default function Codes({ adminPass }) {
             setCode('')
             setCodes(data.codes || [])
             // auto-redeem this code for all players
-            await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c } })
+            await api('redeem-start-background', { adminPass, method: 'POST', body: { onlyCode: c } })
             toast.success('Auto-redeem started')
             navigate('/history')
         } catch (e) { setError(String(e.message || e)); toast.error('Add failed') } finally { setLoading(false) }
@@ -81,7 +82,7 @@ export default function Codes({ adminPass }) {
         setLoading(true)
         setError('')
         try {
-            const start = await api('redeem-start', { adminPass, method: 'POST', body: { onlyCode: c.code } })
+            await api('redeem-start-background', { adminPass, method: 'POST', body: { onlyCode: c.code } })
             toast.success(`Redemption started for ${c.code}`)
             navigate('/history')
         } catch (e) {
